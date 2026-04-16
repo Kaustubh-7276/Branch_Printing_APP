@@ -1,0 +1,61 @@
+using System.Security.Cryptography;
+using System.Text;
+
+namespace Branch_Printing_APP.CommonUtil
+{
+    public static class BPAHelper
+    {
+        public static string CallKey()
+        {
+            return "1bJTd2SauPv5Garuaq0Ig43uqq5NJOEw94wxdZTpUpFB9GmyPk677gJvC1Ro6sbAvKR4pVwtxdCfuoZDb6hJ5bVQKqlfihJfSYZtxVrVU270JhFbqTmYskatMTgPyjvv99CF2Te8ecYs2SPxyZAF0YwOCNOWmsyqN5y9tq2Kw2pjoiDs5gIHuw5U49JzOB6otS7kThBJEH9A76u4uUvR8DKbVcBrWu5qSJGEnbsXNfJdq5L2D8QgRdVsXHp2A7j1X2n4WIISvU1V9koIySNisHFBTcWJS0sC5BTFwrtfLEE9lEwz2bxHQpWJiu12ZeKpi7oUSqeb";
+        }
+
+        public static string PasswordEncrypt(string inText, string key)
+        {
+            byte[] bytesBuff = Encoding.Unicode.GetBytes(inText);
+            using (Aes aesAlg = Aes.Create())
+            {
+                // Salt MUST match exactly with the ASMX.VB service
+                byte[] salt = new byte[] { 73, 118, 97, 110, 32, 77, 101, 100, 118, 101, 100, 101, 118 };
+                using (var crypto = new Rfc2898DeriveBytes(key, salt))
+                {
+                    aesAlg.Key = crypto.GetBytes(32);
+                    aesAlg.IV = crypto.GetBytes(16);
+                    using (var mStream = new MemoryStream())
+                    {
+                        using (var cStream = new CryptoStream(mStream, aesAlg.CreateEncryptor(), CryptoStreamMode.Write))
+                        {
+                            cStream.Write(bytesBuff, 0, bytesBuff.Length);
+                            cStream.FlushFinalBlock();
+                        }
+                        return Convert.ToBase64String(mStream.ToArray());
+                    }
+                }
+            }
+        }
+
+        public static string PasswordDecrypt(string cryptTxt, string key)
+        {
+            cryptTxt = cryptTxt.Replace(" ", "+");
+            byte[] bytesBuff = Convert.FromBase64String(cryptTxt);
+            using (Aes aesAlg = Aes.Create())
+            {
+                byte[] salt = new byte[] { 73, 118, 97, 110, 32, 77, 101, 100, 118, 101, 100, 101, 118 };
+                using (var crypto = new Rfc2898DeriveBytes(key, salt))
+                {
+                    aesAlg.Key = crypto.GetBytes(32);
+                    aesAlg.IV = crypto.GetBytes(16);
+                    using (var mStream = new MemoryStream())
+                    {
+                        using (var cStream = new CryptoStream(mStream, aesAlg.CreateDecryptor(), CryptoStreamMode.Write))
+                        {
+                            cStream.Write(bytesBuff, 0, bytesBuff.Length);
+                            cStream.FlushFinalBlock();
+                        }
+                        return Encoding.Unicode.GetString(mStream.ToArray());
+                    }
+                }
+            }
+        }
+    }
+}
