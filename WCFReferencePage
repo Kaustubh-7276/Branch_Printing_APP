@@ -1,0 +1,75 @@
+using BranchPrintingService.CommonUtils;
+using BranchPrintingService.LogHelper;
+using BranchPrintingService.RTFHelper;
+using BranchPrintingService.Security;
+using System;
+using System.ServiceModel;
+using System.Xml;
+namespace BranchPrintingService
+{
+    [ServiceContract(Namespace = "http://tempuri.org")]
+    public interface IRTFPrint
+    {
+        [OperationContract]
+        string GenerateRTF(string xmlString, string sDate, string nTellerNo);
+
+        [OperationContract]
+        string PrintFile(string xmlString);
+    }
+
+    public class RTFPrint : IRTFPrint
+    {
+
+        public string GenerateRTF(string xmlString, string sDate, string nTellerNo)
+        {
+            FileLogger.Info("----- GenerateRTF START ----- " + DateTime.Now);
+
+            XmlNode node = null;
+
+            try
+            {
+                TCSRTFMerge merge = new TCSRTFMerge();
+
+                // 🔐 Decrypt
+                string key = BPAHelper.CallKey();
+
+                FileLogger.Info("Decrypt start");
+                xmlString = BPAHelper.PasswordDecrypt(xmlString, key);
+                FileLogger.Info("Decrypt end");
+
+                // 🔐 Secure XML load
+                CFNSComponentDocuments docs = new CFNSComponentDocuments();
+                XmlDocument safeDoc = XmlSecurity.LoadSecureXml(xmlString);
+
+                docs.LoadXml(safeDoc.OuterXml);
+
+                XmlDocument inXml = XmlSecurity.LoadSecureXml(xmlString);
+
+                // 🔥 Merge
+                node = merge.RTFRemoteMerge(
+            docs.ComponentDocument(0),
+            sDate,
+            nTellerNo);
+
+                // 🔐 Encrypt back
+                FileLogger.Info("Encrypt start");
+                node.InnerXml = BPAHelper.PasswordEncrypt(node.InnerXml, key);
+                FileLogger.Info("Encrypt end");
+
+                FileLogger.Info("----- GenerateRTF END -----");
+
+                return node.InnerXml;
+            }
+            catch (Exception ex)
+            {
+                FileLogger.Error("GenerateRTF failed", ex);
+                throw;
+            }
+        }
+
+        public string PrintFile(string xmlString)
+        {
+            return "Okay";
+        }
+    }
+}
