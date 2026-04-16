@@ -1,0 +1,6 @@
+@Branch_Printing_APP_HostAddress = http://localhost:5191
+
+GET {{Branch_Printing_APP_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
