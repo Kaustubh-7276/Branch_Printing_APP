@@ -1,0 +1,144 @@
+Private Declare Function code_gen Lib "CODE.dll" _
+    (ByVal ibr As String,
+     ByVal dbrcd As String,
+     ByVal dftnum As String,
+     ByVal pname As String,
+     ByVal fdig As String,
+     ByVal amt As String,
+     ByVal rdig As String,
+     ByVal sr As String,
+     ByVal dt As String,
+     ByVal RetCd As String) As Integer
+Public Function ValidateBIAKkey(ByVal AllPara As String) As String
+    'Start of IR 24070056
+    LogWriterCheck("------------- Start of Calling  Service ValidateBIAKkey: " + " at " + DateTime.Now.ToString())
+    'End of IR 24070056
+    Dim StrKey As String = CallKey()
+    'Encrypting for testing
+    'AllPara = passwordEncrypt(AllPara,StrKey)
+
+    'Decrypting
+    AllPara = passwordDecrypt(AllPara, StrKey)
+    Dim AllParaAr As String()
+    AllParaAr = AllPara.Split("~c")
+    Dim SerialNumber = AllParaAr(0)
+    Dim IssuingBranchID = AllParaAr(1)
+    Dim DraweeBranchID = AllParaAr(2)
+    Dim DraftNumber As String
+    DraftNumber = AllParaAr(3)
+    Dim Prefix As String
+    Prefix = AllParaAr(4)
+    Dim PayeeName As String
+    PayeeName = AllParaAr(5)
+    Dim DraftAmount As String
+    DraftAmount = AllParaAr(6)
+    Dim HostDate As String
+    HostDate = AllParaAr(7)
+    Dim Keyword As String
+    Keyword = AllParaAr(8)
+    Dim ibr, dbr, dftnum, dftnum1, dftnumful, pname, amnt, fdig, rdig, amt, srl, dt, RetCd, TempHostDate As String
+    Dim DOIArray As String()
+    Dim resultkey As Integer = 0
+    Dim LogsPath As String = "E:\BPA\logs\BIAKKey"
+
+    Try
+        BIAKLogWriter("*****Start ValidateBIAKkey*****", LogsPath)
+        BIAKLogWriter("*AllPara*" + AllPara, LogsPath)
+        ibr = IssuingBranchID
+        dbr = DraweeBranchID
+        ibr = ibr.PadLeft(6, "0")
+        dbr = dbr.PadLeft(6, "0")
+
+        dftnum = DraftNumber
+        dftnum1 = DraftNumber
+
+        dftnum = Prefix.Trim() + dftnum.Trim()
+        dftnumful = Prefix.Trim() + dftnum1.Trim()
+
+        BIAKLogWriter("Addtion complete Prefix + dftnum " + dftnum, LogsPath)
+
+
+        dftnum = dftnum.PadLeft(13, "0")
+
+        BIAKLogWriter("Addtion complete Prefix second + dftnum " + dftnum, LogsPath)
+
+        dftnum = "IOI" + dftnum
+        BIAKLogWriter("Addtion complete Prefix second + dftnum " + dftnum, LogsPath)
+
+        pname = PayeeName.Trim()
+
+        If pname.Length > 50 Then
+            pname = pname.Substring(0, 50)
+        End If
+
+        amnt = DraftAmount
+
+        fdig = amnt.Chars(0)
+        rdig = amnt.Split("."c)(0).Length
+
+        amt = amnt.Split(Convert.ToChar("."))(0) * 100
+        BIAKLogWriter("Splited amnt ", LogsPath)
+
+        amt = amt.PadLeft(14, "0"c)
+
+        BIAKLogWriter("Start Randomize()", LogsPath)
+        Randomize()
+
+        BIAKLogWriter("End Randomize()", LogsPath)
+
+        BIAKLogWriter("Assign Serial Number", LogsPath)
+        srl = SerialNumber.Trim()
+
+        TempHostDate = HostDate
+
+        BIAKLogWriter("Splited TempHostDate", LogsPath)
+        DOIArray = TempHostDate.Split("/"c)
+
+        BIAKLogWriter("TempHostDate assign to DOIArray ", LogsPath)
+
+        dt = DOIArray(0).PadLeft(2, "0"c) + DOIArray(1).PadLeft(2, "0"c) + DOIArray(2).Substring(2, 2)
+
+        BIAKLogWriter("DOIArray stored in dt ", LogsPath)
+
+        RetCd = "111111"
+
+        BIAKLogWriter("Start code_gen ()", LogsPath)
+
+        code_gen(ibr, dbr, dftnum, pname, fdig, amt, rdig, srl, dt, RetCd)
+
+        BIAKLogWriter("End code_gen ()", LogsPath)
+
+
+        BIAKLogWriter("Start Compare BIAK Key", LogsPath)
+        BIAKLogWriter("keywordog= " + Keyword, LogsPath)
+        BIAKLogWriter("keyword= " + Keyword.Trim(), LogsPath)
+        BIAKLogWriter("RetCd= " + RetCd, LogsPath)
+        If Keyword.Trim() = RetCd Then
+
+            BIAKLogWriter("return true", LogsPath)
+            BIAKLogWriter("End Compare BIAK Key", LogsPath)
+
+            BIAKLogWriter("*****End BIAK Key Validiation*****", LogsPath)
+            Return passwordEncrypt("true", StrKey)
+
+        Else
+
+            BIAKLogWriter("return false", LogsPath)
+            BIAKLogWriter("End Compare BIAK Key", LogsPath)
+
+            BIAKLogWriter("*****End BIAK Key Validiation*****", LogsPath)
+            Return passwordEncrypt("false", StrKey)
+
+        End If
+
+    Catch ex As Exception
+        'Start of IR 24070056
+        LogWriterCheck("------------- Exception ValidateBIAKkey : " + " at " + DateTime.Now.ToString("hh:mm:ss") + ":" + ex.Message())
+        'End of IR 24070056
+        Return passwordEncrypt("error", StrKey)
+    End Try
+    'Start of IR 24070056
+    LogWriterCheck("------------- End of Calling  Service ValidateBIAKkey : " + " at " + DateTime.Now.ToString())
+    'End of IR 24070056
+
+End Function
