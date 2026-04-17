@@ -1,0 +1,950 @@
+using BranchPrintingService.LogHelper;
+using BranchPrintingService.Security;
+using System;
+using System.CodeDom.Compiler;
+using System.IO;
+using System.Text;
+using System.Xml;
+namespace BranchPrintingService.RTFHelper
+{
+    public class TCSRTFMerge
+    {
+        private enum RTFMergeDocumentResult : byte
+        {
+            Merged = 0,
+            NoMerge = 1
+        }
+
+        private const string MERGER_FIELD_USED = "used";
+        private const string MERGER_FIELD_ATT_USED = "@used";
+
+        // =========================
+        // ENTRY POINT
+        // =========================
+        public XmlNode RTFRemoteMerge(CFNSComponentDocument xmlCurrentInDoc, string sDate, string nTellerNo)
+        {
+            try
+            {
+                XmlNode returnNode = null;
+                FileLogger.Info("RTFRemoteMerge started");
+                returnNode = RTFMerge(xmlCurrentInDoc, sDate, nTellerNo);
+                FileLogger.Info("returnNode: " + returnNode.InnerXml);
+                return returnNode;
+                //return RTFMerge(xmlCurrentInDoc, sDate, nTellerNo);
+            }
+            catch (Exception ex)
+            {
+                FileLogger.Error("RTFRemoteMerge failed", ex);
+
+                XmlDocument doc = new XmlDocument();
+
+                string errorXml = "<Err>" + System.Security.SecurityElement.Escape(ex.ToString()) + "</Err>";
+
+                byte[] bytes = Encoding.UTF8.GetBytes(errorXml);
+
+                using (MemoryStream ms = new MemoryStream(bytes))
+                {
+                    XmlReaderSettings settings = new XmlReaderSettings
+                    {
+                        DtdProcessing = DtdProcessing.Ignore,
+                        XmlResolver = null,
+                        MaxCharactersFromEntities = 1024
+                    };
+
+                    using (XmlReader reader = XmlReader.Create(ms, settings))
+                    {
+                        doc.Load(reader);
+                    }
+                }
+
+                return doc;
+            }
+        }
+
+        public bool RTFRemoteDeleteTempFiles(CFNSComponentDocument xmlCurrentInDoc)
+        {
+            try
+            {
+                DeleteTempFiles(xmlCurrentInDoc);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                FileLogger.Warn("DeleteTempFiles failed: " + ex.Message);
+                return false;
+            }
+        }
+
+        // =========================
+        // DELETE TEMP FILES
+        // =========================
+        private void DeleteTempFiles(CFNSComponentDocument xmlCurrentInDoc)
+        {
+            var nodes = xmlCurrentInDoc.getMethodParameterNodeList("fileName", true);
+
+            foreach (XmlNode node in nodes)
+            {
+                try
+                {
+                    if (File.Exists(node.InnerText))
+                    {
+                        File.Delete(node.InnerText);
+                        FileLogger.Info("Deleted temp file: " + node.InnerText);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.Warn("Failed deleting file: " + node.InnerText + " | " + ex.Message);
+                }
+            }
+        }
+
+        // =========================
+        // MAIN MERGE ENGINE
+        // =========================
+        private XmlNode RTFMerge(CFNSComponentDocument xmlCurrentInDoc, string sDate, string vTellerNo)
+        {
+            string sTemplate = xmlCurrentInDoc.getMethodParameterText("template", true);
+            string sTemplatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RTF");
+
+            if (!string.IsNullOrEmpty(sTemplatePath))
+                sTemplate = Path.Combine(sTemplatePath, sTemplate);
+
+            string sStartLine = xmlCurrentInDoc.getMethodParameterText("startLine", true);
+            string sTXCollection = xmlCurrentInDoc.getMethodParameterText("TXCollection", true);
+            string sTXSection = xmlCurrentInDoc.getMethodParameterText("TXSection", true);
+
+            XmlNode xmlRXSection = xmlCurrentInDoc.getMethodParameterNode("RXSection", true);
+
+            XmlNode xmlPrintDocuments = xmlCurrentInDoc.OwnerDocument.CreateElement(sTXSection);
+
+            int nEndLine = 0;
+            int nPassCount = 0;
+
+            RTFMergeDocumentResult result;
+
+            do
+            {
+                FileLogger.Info("RTF Merge iteration started");
+
+                TCSRTFDocument doc = new TCSRTFDocument(sTemplate);
+
+                nPassCount++;
+
+                result = RTFMergeDocument(doc, xmlRXSection, ref sStartLine, ref nEndLine);
+
+                // IMPORTANT: VB resets StartLine AFTER assignment
+                sStartLine = "0";
+
+                if (result == RTFMergeDocumentResult.Merged)
+                {
+                    string tempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RTFTEMP");
+
+                    if (!Directory.Exists(tempDir))
+                        Directory.CreateDirectory(tempDir);
+
+                    TempFileCollection tempFiles = new TempFileCollection(tempDir, false);
+                    string tempFile = tempFiles.AddExtension("rtf", true);
+
+                    doc.Save(tempFile);
+
+                    XmlNode xmlPrintDocument = xmlCurrentInDoc.OwnerDocument.CreateElement(sTXCollection);
+
+                    xmlPrintDocument.InnerXml = "<fileName>" + tempFile + "</fileName>";
+
+                    string title;
+
+                    try
+                    {
+                        title = doc.SelectSingleNode("\\title").Parent.Children[2].RTF;
+                    }
+                    catch
+                    {
+                        title = "Unknown Document";
+                    }
+
+                    title += "  : Page " + (xmlPrintDocuments.ChildNodes.Count + 1);
+
+                    xmlPrintDocument.InnerXml += "<title>" + title + "</title>";
+                    xmlPrintDocument.InnerXml += "<LineNo>" + nEndLine + "</LineNo>";
+
+                    xmlPrintDocuments.AppendChild(xmlPrintDocument);
+
+                    FileLogger.Info("Generated page: " + title);
+                }
+
+            } while (result == RTFMergeDocumentResult.Merged);
+
+            if (xmlPrintDocuments.ChildNodes.Count == 0)
+                throw new Exception("No Pages to Print");
+
+            FileLogger.Info("RTF Merge completed");
+
+            return xmlPrintDocuments;
+        }
+
+        // =========================
+        // CORE MERGE LOGIC (EXACT VB)
+        // =========================
+        private RTFMergeDocumentResult RTFMergeDocument(
+            TCSRTFDocument RTFDocument,
+            XmlNode xmlRXSection,
+            ref string StartRow,
+            ref int nEndLine)
+        {
+            var oTemplateFields = RTFDocument.GetGroupsByCommand("\\field");
+
+            RTFMergeDocumentResult oResult = RTFMergeDocumentResult.NoMerge;
+
+            TCSLineCheck oStartLine = new TCSLineCheck();
+            oStartLine.StartLine = Convert.ToInt32(StartRow);
+
+            XmlAttribute oMessageFieldUsedNew =
+                xmlRXSection.OwnerDocument.CreateAttribute(MERGER_FIELD_USED);
+            oMessageFieldUsedNew.InnerText = "True";
+
+            foreach (RTFNode oTemplateField in oTemplateFields)
+            {
+                RTFFieldGroup oFieldGroup = new RTFFieldGroup((RTFGroup)oTemplateField);
+
+                string sInstruction = oFieldGroup.FieldInstruction.Trim();
+
+                if (sInstruction.Length > 0)
+                {
+                    oFieldGroup.FieldResult = "";
+
+                    XmlNodeList oMessageFields = null;
+                    bool bValidInstruction = false;
+
+                    try
+                    {
+                        if (sInstruction.Contains(MERGER_FIELD_ATT_USED))
+                        {
+                            oMessageFields = xmlRXSection.SelectNodes(sInstruction);
+                        }
+                        else
+                        {
+                            oMessageFields = xmlRXSection.SelectNodes(
+                                sInstruction + "[not(@used=True)]");
+                        }
+
+                        bValidInstruction = true;
+                    }
+                    catch
+                    {
+                        bValidInstruction = false;
+                    }
+
+                    if (oStartLine.Check(sInstruction) && bValidInstruction)
+                    {
+                        foreach (XmlNode oMessageField in oMessageFields)
+                        {
+                            if (IsXMLNodePrintable(oMessageField))
+                            {
+                                XmlAttribute oMessageFieldUsed =
+                                    (XmlAttribute)oMessageField.Attributes.GetNamedItem(MERGER_FIELD_USED);
+
+                                if (oMessageFieldUsed == null)
+                                {
+                                    oFieldGroup.FieldResult = oMessageField.InnerText.TrimEnd();
+
+                                    oMessageField.Attributes.Append(
+                                        (XmlAttribute)oMessageFieldUsedNew.Clone());
+
+                                    oResult = RTFMergeDocumentResult.Merged;
+                                    StartRow = oStartLine.LineNo.ToString();
+                                    nEndLine = oStartLine.LineNo;
+
+                                    break;
+                                }
+                                else if (oMessageFieldUsed.InnerText == "False")
+                                {
+                                    oFieldGroup.FieldResult = oMessageField.InnerText.TrimEnd();
+
+                                    oMessageFieldUsed.InnerText = "True";
+
+                                    oResult = RTFMergeDocumentResult.Merged;
+                                    StartRow = oStartLine.LineNo.ToString();
+                                    nEndLine = oStartLine.LineNo;
+
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return oResult;
+        }
+
+        // =========================
+        // PRINTABLE CHECK
+        // =========================
+        private bool IsXMLNodePrintable(XmlNode node)
+        {
+            if (node.ChildNodes.Count == 1)
+                return node.FirstChild.NodeType == XmlNodeType.Text;
+
+            if (node.ChildNodes.Count == 0)
+                return true;
+
+            return false;
+        }
+    }
+    public class TCSRTFMergeOld
+    {
+        private enum RTFMergeDocumentResult : byte
+        {
+            Merged = 0,
+            NoMerge = 1
+        }
+
+        private const string MERGER_FIELD_USED = "used";
+        private const string MERGER_FIELD_ATT_USED = "@used";
+
+        // =========================
+        // 🔹 ENTRY POINT
+        // =========================
+        public XmlNode RTFRemoteMerge(CFNSComponentDocument xmlCurrentInDoc, string sDate, string nTellerNo)
+        {
+            try
+            {
+                FileLogger.Info("RTFRemoteMerge started");
+                return RTFMerge(xmlCurrentInDoc, sDate, nTellerNo);
+            }
+            catch (Exception ex)
+            {
+                FileLogger.Error("RTFRemoteMerge failed", ex);
+
+                XmlDocument doc = new XmlDocument();
+
+                string errorXml = "<Err>" + System.Security.SecurityElement.Escape(ex.ToString()) + "</Err>";
+
+                byte[] bytes = Encoding.UTF8.GetBytes(errorXml);
+
+                using (MemoryStream ms = new MemoryStream(bytes))
+                {
+                    XmlReaderSettings settings = new XmlReaderSettings
+                    {
+                        DtdProcessing = DtdProcessing.Ignore,
+                        XmlResolver = null,
+                        MaxCharactersFromEntities = 1024
+                    };
+
+                    using (XmlReader reader = XmlReader.Create(ms, settings))
+                    {
+                        doc.Load(reader);
+                    }
+                }
+
+                return doc;
+            }
+        }
+
+        public bool RTFRemoteDeleteTempFiles(CFNSComponentDocument xmlCurrentInDoc)
+        {
+            try
+            {
+                DeleteTempFiles(xmlCurrentInDoc);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                FileLogger.Warn("DeleteTempFiles failed: " + ex.Message);
+                return false;
+            }
+        }
+
+        // =========================
+        // 🔹 DELETE TEMP FILES
+        // =========================
+        private void DeleteTempFiles(CFNSComponentDocument xmlCurrentInDoc)
+        {
+            var nodes = xmlCurrentInDoc.getMethodParameterNodeList("fileName", true);
+
+            foreach (XmlNode node in nodes)
+            {
+                try
+                {
+                    if (File.Exists(node.InnerText))
+                    {
+                        File.Delete(node.InnerText);
+                        FileLogger.Info("Deleted temp file: " + node.InnerText);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    FileLogger.Warn("Failed deleting file: " + node.InnerText + " | " + ex.Message);
+                }
+            }
+        }
+
+        // =========================
+        // 🔹 MAIN MERGE ENGINE
+        // =========================
+        private XmlNode RTFMerge(CFNSComponentDocument xmlCurrentInDoc, string sDate, string vTellerNo)
+        {
+            string sTemplate = xmlCurrentInDoc.getMethodParameterText("template", true);
+            string sTemplatePath = AppDomain.CurrentDomain.BaseDirectory + "RTF";
+
+            if (!string.IsNullOrEmpty(sTemplatePath))
+                sTemplate = Path.Combine(sTemplatePath, sTemplate);
+
+            string sStartLine = xmlCurrentInDoc.getMethodParameterText("startLine", true);
+            string sTXCollection = xmlCurrentInDoc.getMethodParameterText("TXCollection", true);
+            string sTXSection = xmlCurrentInDoc.getMethodParameterText("TXSection", true);
+
+            XmlNode xmlRXSection = xmlCurrentInDoc.getMethodParameterNode("RXSection", true);
+
+            XmlNode xmlPrintDocuments = xmlCurrentInDoc.OwnerDocument.CreateElement(sTXSection);
+
+            int nEndLine = 0;
+            int nPassCount = 0;
+
+            RTFMergeDocumentResult result;
+
+            do
+            {
+                FileLogger.Info("RTF Merge iteration started");
+
+                TCSRTFDocument doc = new TCSRTFDocument(sTemplate);
+
+                nPassCount++;
+
+                result = RTFMergeDocument(doc, xmlRXSection, ref sStartLine, ref nEndLine);
+
+                sStartLine = "0";
+
+                if (result == RTFMergeDocumentResult.Merged)
+                {
+                    string tempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "RTFTEMP");
+
+                    if (!Directory.Exists(tempDir))
+                        Directory.CreateDirectory(tempDir);
+
+                    TempFileCollection tempFiles = new TempFileCollection(tempDir, false);
+                    string tempFile = tempFiles.AddExtension("rtf", true);
+
+                    doc.Save(tempFile);
+
+                    XmlNode xmlPrintDocument = xmlCurrentInDoc.OwnerDocument.CreateElement(sTXCollection);
+
+                    xmlPrintDocument.InnerXml = "<fileName>" + tempFile + "</fileName>";
+
+                    string title;
+
+                    try
+                    {
+                        title = doc.SelectSingleNode("\\title").Parent.Children[2].RTF;
+                    }
+                    catch
+                    {
+                        title = "Unknown Document";
+                    }
+
+                    title += " : Page " + (xmlPrintDocuments.ChildNodes.Count + 1);
+
+                    xmlPrintDocument.InnerXml += "<title>" + title + "</title>";
+                    xmlPrintDocument.InnerXml += "<LineNo>" + nEndLine + "</LineNo>";
+
+                    xmlPrintDocuments.AppendChild(xmlPrintDocument);
+
+                    FileLogger.Info("Generated page: " + title);
+                }
+
+            } while (result == RTFMergeDocumentResult.Merged);
+
+            if (xmlPrintDocuments.ChildNodes.Count == 0)
+                throw new Exception("No Pages to Print");
+
+            FileLogger.Info("RTF Merge completed");
+
+            return xmlPrintDocuments;
+        }
+
+        // =========================
+        // 🔹 MERGE DOCUMENT CORE
+        // =========================
+        private RTFMergeDocumentResult RTFMergeDocument(
+        TCSRTFDocument doc,
+        XmlNode xmlRXSection,
+        ref string StartRow,
+        ref int nEndLine)
+        {
+            var templateFields = doc.GetGroupsByCommand("\\field");
+
+            RTFMergeDocumentResult result = RTFMergeDocumentResult.NoMerge;
+
+            TCSLineCheck lineCheck = new TCSLineCheck();
+            lineCheck.StartLine = Convert.ToInt32(StartRow);
+
+            XmlNode usedAttr = xmlRXSection.OwnerDocument.CreateAttribute(MERGER_FIELD_USED);
+            usedAttr.InnerText = "True";
+
+            foreach (RTFNode templateField in templateFields)
+            {
+                RTFFieldGroup fieldGroup = new RTFFieldGroup((RTFGroup)templateField);
+
+                string instruction = fieldGroup.FieldInstruction.Trim();
+
+                if (instruction.Length > 0)
+                {
+                    fieldGroup.FieldResult = "";
+
+                    XmlNodeList messageFields = null;
+                    bool valid = false;
+
+                    try
+                    {
+                        instruction = XPathValidator.Validate(instruction);
+                        messageFields = xmlRXSection.SelectNodes(instruction);
+                        valid = true;
+                    }
+                    catch
+                    {
+                        valid = false;
+                    }
+
+                    if (lineCheck.Check(instruction) && valid)
+                    {
+                        foreach (XmlNode field in messageFields)
+                        {
+                            if (IsXMLNodePrintable(field))
+                            {
+                                fieldGroup.FieldResult = field.InnerText;
+
+                                result = RTFMergeDocumentResult.Merged;
+                                StartRow = lineCheck.LineNo.ToString();
+                                nEndLine = lineCheck.LineNo;
+
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        // =========================
+        // 🔹 PRINTABLE CHECK
+        // =========================
+        private bool IsXMLNodePrintable(XmlNode node)
+        {
+            if (node.ChildNodes.Count == 1)
+                return node.FirstChild.NodeType == XmlNodeType.Text;
+
+            if (node.ChildNodes.Count == 0)
+                return true;
+
+            return false;
+        }
+    }
+}
+using System;
+using System.IO;
+using System.Text;
+using System.Xml;
+using System.Xml.Linq;
+using System.Xml.Schema;
+namespace BranchPrintingService
+{
+    public class CFNSComponentDocument
+    {
+        private XmlElement mxmlComDoc;
+
+        private const string sFlowRelPath = "xml/workflows";
+
+        public CFNSComponentDocument()
+        {
+            XmlDocument xmlTempDoc = new XmlDocument();
+
+            byte[] xml_Byte = Encoding.Unicode.GetBytes(
+                "<componentDocument version='2.0'><header><component><method/><properties/></component></header><body/></componentDocument>"
+            );
+
+            using (MemoryStream xml_MS = new MemoryStream(xml_Byte))
+            {
+                XmlReaderSettings goodSettings = new XmlReaderSettings
+                {
+                    DtdProcessing = DtdProcessing.Ignore,
+                    XmlResolver = null,
+                    ValidationType = ValidationType.Schema,
+                    Schemas = new XmlSchemaSet(),
+                    MaxCharactersFromEntities = 1024,
+                    IgnoreComments = true
+                };
+
+                using (XmlReader goodxmlread = XmlReader.Create(xml_MS, goodSettings))
+                {
+                    xmlTempDoc.Load(goodxmlread);
+                }
+            }
+
+            mxmlComDoc = xmlTempDoc.DocumentElement;
+        }
+
+        public CFNSComponentDocument(XmlElement componentDocument)
+        {
+            mxmlComDoc = componentDocument;
+        }
+
+        public XmlDocument OwnerDocument => mxmlComDoc.OwnerDocument;
+        public XmlElement XMLElement => mxmlComDoc;
+
+        // =========================
+        // SAFE NAME (REPLACES OWASP)
+        // =========================
+        private string SafeName(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return input;
+            return input.Replace("/", "").Replace("\\", "").Replace("..", "");
+        }
+
+        // =========================
+        // CORE METHODS
+        // =========================
+
+        public void loadWorkflowNode(XmlNode flowNode)
+        {
+            try
+            {
+                flowNodeID = flowNode.Attributes["ID"].Value;
+                component = flowNode.SelectSingleNode("component");
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
+        }
+
+        public void Save(string Filename)
+        {
+            XmlDocument XMLLogDoc = new XmlDocument();
+
+            byte[] mxmlComDoc_Byte = Encoding.Unicode.GetBytes(mxmlComDoc.OuterXml);
+
+            using (MemoryStream ms = new MemoryStream(mxmlComDoc_Byte))
+            {
+                XmlReaderSettings settings = new XmlReaderSettings
+                {
+                    DtdProcessing = DtdProcessing.Ignore,
+                    XmlResolver = null,
+                    ValidationType = ValidationType.Schema,
+                    Schemas = new XmlSchemaSet(),
+                    MaxCharactersFromEntities = 1024,
+                    IgnoreComments = true
+                };
+
+                using (XmlReader reader = XmlReader.Create(ms, settings))
+                {
+                    XMLLogDoc.Load(reader);
+                }
+            }
+
+            XMLLogDoc.Save(Filename);
+        }
+
+        // =========================
+        // HEADER / FLOW / COMPONENT
+        // =========================
+
+        public XmlNode header => getChildNode(mxmlComDoc, "header");
+
+        public XmlNode index
+        {
+            get => getChildNode(header, "index");
+            set => setChildNode(header, value);
+        }
+
+        public string indexValue
+        {
+            get => index.InnerText;
+            set => index.InnerText = value;
+        }
+
+        public XmlNode flow
+        {
+            get => getChildNode(header, "flow");
+            set => setChildNode(header, value);
+        }
+
+        public string flowID
+        {
+            get => getAttribute(flow, "ID").InnerText;
+            set => getAttribute(flow, "ID").InnerText = value;
+        }
+
+        public string flowNodeID
+        {
+            get => getAttribute(flow, "nodeID").InnerText;
+            set => getAttribute(flow, "nodeID").InnerText = value;
+        }
+
+        public XmlNode component
+        {
+            get => getChildNode(header, "component");
+            set => setChildNode(header, value);
+        }
+
+        public XmlNode method
+        {
+            get => getChildNode(component, "method");
+            set => setChildNode(component, value);
+        }
+
+        public XmlNode properties
+        {
+            get => getChildNode(component, "properties");
+            set => setChildNode(component, value);
+        }
+
+        public XmlNode body
+        {
+            get => getChildNode(mxmlComDoc, "body");
+            set => setChildNode(mxmlComDoc, value);
+        }
+
+        // =========================
+        // METHOD PARAMETERS (FULL)
+        // =========================
+
+        public string getMethodParameterText(string name, bool required)
+        {
+            XmlNode node = getMethodParameterNode(name, required);
+
+            try
+            {
+                return node.FirstChild.NodeType == XmlNodeType.Text
+                    ? node.InnerText
+                    : node.InnerXml;
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        public XmlNode getMethodParameterNode(string name, bool required)
+        {
+            XmlNode node = method.SelectSingleNode(name);
+
+            if (node == null)
+            {
+                if (required)
+                    throw new Exception($"Required method parameter \"{name}\" is missing");
+                return null;
+            }
+
+            return getMethodParameterNode(node);
+        }
+
+        public XmlNode getMethodParameterNode(XmlNode node)
+        {
+            string type = "literal";
+
+            try
+            {
+                type = node.Attributes["type"].InnerText;
+            }
+            catch { }
+
+            if (type == "xpath")
+            {
+                try { return XMLElement.SelectSingleNode(node.InnerText); }
+                catch { return null; }
+            }
+
+            return node;
+        }
+
+        public XmlNodeList getMethodParameterNodeList(string name, bool required)
+        {
+            XmlNode node = method.SelectSingleNode(name);
+
+            if (node == null)
+            {
+                if (required)
+                    throw new Exception($"Required parameter \"{name}\" missing");
+                return null;
+            }
+
+            return getMethodParameterNodeList(node);
+        }
+
+        public XmlNodeList getMethodParameterNodeList(XmlNode node)
+        {
+            string type = "literal";
+
+            try { type = node.Attributes["type"].InnerText; } catch { }
+
+            if (type == "xpath")
+            {
+                return XMLElement.SelectNodes(node.InnerText);
+            }
+
+            throw new Exception($"Method parameter '{node.Name}' must be type=\"xpath\"");
+        }
+
+        // =========================
+        // BODY METHODS
+        // =========================
+
+        public XmlNode appendBodySubDocument(string name, bool persist)
+        {
+            XmlNode node = body.SelectSingleNode(name);
+
+            if (node == null)
+            {
+                node = body.AppendChild(OwnerDocument.CreateElement(name));
+            }
+            else
+            {
+                XmlNode newNode = OwnerDocument.CreateElement(name);
+                body.ReplaceChild(newNode, node);
+                node = newNode;
+            }
+
+            getAttribute(node, "persist").InnerText = persist.ToString();
+            return node;
+        }
+
+        public XmlNode appendBodySubDocument(string name, bool persist, string innerXml)
+        {
+            XmlNode node = appendBodySubDocument(name, persist);
+            node.InnerXml = new XCData(innerXml).Value;
+            return node;
+        }
+
+        public CFNSComponentDocument createReturnDocument()
+        {
+            CFNSComponentDocument doc = new CFNSComponentDocument();
+            doc.setChildNode(doc.XMLElement, this.header);
+
+            XmlNodeList nodes = body.SelectNodes("*[@persist='True']");
+
+            foreach (XmlNode n in nodes)
+            {
+                doc.body.AppendChild(doc.OwnerDocument.ImportNode(n, true));
+            }
+
+            return doc;
+        }
+
+        // =========================
+        // STACK
+        // =========================
+
+        public XmlNode returnStack
+        {
+            get => getChildNode(header, "returnStack");
+            set => setChildNode(header, value);
+        }
+
+        public void pushReturnStack(XmlNode node)
+        {
+            returnStack.AppendChild(OwnerDocument.ImportNode(node, true));
+        }
+
+        public XmlNode popReturnStack()
+        {
+            if (returnStack.LastChild == null) return null;
+            return returnStack.RemoveChild(returnStack.LastChild);
+        }
+
+        // =========================
+        // HELPERS
+        // =========================
+
+        private XmlNode getAttribute(XmlNode node, string name)
+        {
+            XmlNode attr = node.Attributes[name];
+
+            if (attr == null)
+            {
+                attr = OwnerDocument.CreateAttribute(name);
+                node.Attributes.SetNamedItem(attr);
+            }
+
+            return attr;
+        }
+
+        private XmlNode getChildNode(XmlNode nodeFrom, string nodeName)
+        {
+            nodeName = SafeName(nodeName);
+
+            XmlNode node = nodeFrom.SelectSingleNode(nodeName);
+
+            if (node == null)
+            {
+                node = OwnerDocument.CreateElement(nodeName);
+                nodeFrom.AppendChild(node);
+            }
+
+            return node;
+        }
+
+        private XmlNode setChildNode(XmlNode nodeFrom, XmlNode nodeChild)
+        {
+            string name = SafeName(nodeChild.Name);
+
+            XmlNode existing = nodeFrom.SelectSingleNode(name);
+
+            if (existing == null)
+                return nodeFrom.AppendChild(OwnerDocument.ImportNode(nodeChild, true));
+            else
+                return nodeFrom.ReplaceChild(OwnerDocument.ImportNode(nodeChild, true), existing);
+        }
+    }
+
+
+    public class CFNSComponentDocuments : XmlDocument
+    {
+        public CFNSComponentDocuments()
+        {
+            this.LoadXml("<componentDocuments/>");
+        }
+
+        public CFNSComponentDocuments(CFNSComponentDocument doc) : this()
+        {
+            AddComponentDocument(doc);
+        }
+
+        public CFNSComponentDocument ComponentDocument(int index)
+        {
+            XmlNodeList nodes = SelectNodes("componentDocuments/componentDocument");
+            return new CFNSComponentDocument((XmlElement)nodes.Item(index));
+        }
+
+        public CFNSComponentDocument AddComponentDocument(CFNSComponentDocument doc)
+        {
+            XmlElement element = (XmlElement)SelectSingleNode("componentDocuments")
+                .AppendChild(ImportNode(doc.XMLElement, true));
+
+            return new CFNSComponentDocument(element);
+        }
+
+        public CFNSComponentDocuments createReturnDocuments()
+        {
+            CFNSComponentDocuments result = new CFNSComponentDocuments();
+
+            for (int i = 0; i < ComponentDocumentCount; i++)
+            {
+                result.AddComponentDocument(ComponentDocument(i).createReturnDocument());
+            }
+
+            return result;
+        }
+
+        public int ComponentDocumentCount
+        {
+            get
+            {
+                XmlNodeList nodes = SelectNodes("componentDocuments/componentDocument");
+                return nodes.Count;
+            }
+        }
+    }
+}
