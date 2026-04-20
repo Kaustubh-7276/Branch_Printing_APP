@@ -1,0 +1,486 @@
+Imports System
+Imports System.Text
+Imports System.IO
+Imports System.Runtime.InteropServices
+Imports TCSBranchPrinter.RichTextBoxPrintCtrl
+Imports System.Management
+Imports System.Drawing.Printing
+Imports System.Windows.Forms
+Imports Microsoft.VisualBasic.Compatibility.VB6
+Imports System.Net
+Imports System.Reflection
+Imports System.Threading
+Imports System.Security.Principal
+Imports System.Drawing
+
+Namespace TCSBranchPrinter
+
+
+    Public Class CRTFPrinter
+        Private oRichTextBoxPrintCtrl As RichTextBoxPrintCtrl.RichTextBoxPrintCtrl
+        Private sTextRTF As String = String.Empty
+        Private sPrinterName As String = String.Empty
+        Private bInitSuccess As Boolean = False
+        Private WithEvents oPD As PrintDocument
+        Private checkPrint As Integer = 0
+        Public cmbPrinters As ComboBox = New ComboBox()
+
+#Region "Structures"
+        Public Structure DOCINFO
+            Public pDocName As String
+            <MarshalAs(UnmanagedType.LPWStr)> _
+            Public pOutputFile As String
+            <MarshalAs(UnmanagedType.LPWStr)> _
+            Public pDataType As String
+        End Structure
+
+        Public Structure SPageSettings
+            Public Orientation As Integer
+        End Structure
+#End Region
+
+#Region "Property Settings"
+        Public hPrinter1 As IntPtr
+        Public PrinterObject As SPageSettings
+        Public docinfo1 As DOCINFO
+
+
+        Public Property TextRTF() As String
+            Get
+                Return sTextRTF
+            End Get
+
+            Set(ByVal Value As String)
+                sTextRTF = Value
+                oRichTextBoxPrintCtrl.Text = sTextRTF
+            End Set
+        End Property
+
+
+#End Region
+
+
+#Region "UnManaged DLL Declaration"
+
+        <DllImport("winspool.drv", CharSet:=CharSet.Unicode, ExactSpelling:=False, CallingConvention:=CallingConvention.StdCall)> _
+        Public Shared Function OpenPrinter(ByVal pPrinterName As String, ByRef phPrinter As IntPtr, ByVal pDefault As Integer) As Long
+
+        End Function
+        <DllImport("winspool.drv", CharSet:=CharSet.Unicode, ExactSpelling:=False, CallingConvention:=CallingConvention.StdCall)> _
+        Public Shared Function StartDocPrinter(ByVal hPrinter As IntPtr, ByVal Level As Integer, ByRef pDocInfo As DOCINFO) As Long
+
+        End Function
+        <DllImport("winspool.drv", CharSet:=CharSet.Unicode, ExactSpelling:=True, CallingConvention:=CallingConvention.StdCall)> _
+        Public Shared Function StartPagePrinter(ByVal hPrinter As IntPtr) As Long
+
+        End Function
+        <DllImport("winspool.drv", CharSet:=CharSet.Ansi, ExactSpelling:=True, CallingConvention:=CallingConvention.StdCall)> _
+        Public Shared Function WritePrinter(ByVal hPrinter As IntPtr, ByVal data As String, ByVal buf As Integer, ByRef pcWritten As Integer) As Long
+
+        End Function
+        <DllImport("winspool.drv", CharSet:=CharSet.Unicode, ExactSpelling:=True, CallingConvention:=CallingConvention.StdCall)> _
+        Public Shared Function EndPagePrinter(ByVal hPrinter As IntPtr) As Long
+
+        End Function
+        <DllImport("winspool.drv", CharSet:=CharSet.Unicode, ExactSpelling:=True, CallingConvention:=CallingConvention.StdCall)> _
+        Public Shared Function EndDocPrinter(ByVal hPrinter As IntPtr) As Long
+
+        End Function
+        <DllImport("winspool.drv", CharSet:=CharSet.Unicode, ExactSpelling:=True, CallingConvention:=CallingConvention.StdCall)> _
+        Public Shared Function ClosePrinter(ByVal hPrinter As IntPtr) As Long
+
+        End Function
+
+        <DllImport("FINDFT.dll")> _
+        Private Shared Function rcptrn(ByVal ibr As String, _
+        ByVal ibrnm As String, _
+        ByVal itele As String, _
+        ByVal idate As String, _
+        ByVal pname As String, _
+        ByVal dbr As String, _
+        ByVal dbrnm As String, _
+        ByVal dftnum As String, _
+        ByVal amnt As String, _
+        ByVal srl As String, _
+        ByVal code As String, _
+        ByVal tel As String, _
+        ByVal qnm As String) As Integer
+        End Function
+
+        <DllImport("DDWithAdvice.dll")> _
+        Private Shared Function rcptrnadv(ByVal ibr As String, _
+                 ByVal ibrnm As String, _
+                 ByVal itele As String, _
+                 ByVal idate As String, _
+                 ByVal pname As String, _
+                 ByVal dbr As String, _
+                 ByVal dbrnm As String, _
+                 ByVal dftnum As String, _
+                 ByVal amnt As String, _
+                 ByVal srl As String, _
+                 ByVal code As String, _
+                 ByVal tel As String, _
+                 ByVal qnm As String, _
+                 ByVal sCustCode As String, _
+                 ByVal sCustAddress1 As String, _
+                 ByVal sCustAddress2 As String, _
+                 ByVal sCustAddress3 As String, _
+                 ByVal sCustAddress4 As String, _
+                 ByVal sCustAddress5 As String, _
+                 ByVal sRefNo As String, _
+                 ByVal Amount As String, _
+                 ByVal Name As String, _
+                 ByVal sRemitterName As String) As Integer
+        End Function
+
+
+#End Region
+
+#Region "Methods"
+
+
+
+        Public Sub PrinterSetting()
+            Try
+                oPD = New PrintDocument()
+                oPD.PrinterSettings = New PrinterSettings()
+                oRichTextBoxPrintCtrl = New RichTextBoxPrintCtrl.RichTextBoxPrintCtrl()
+                PrinterObject = New SPageSettings()
+                PrinterObject.Orientation = 1
+                oPD.DefaultPageSettings.Landscape = False
+                bInitSuccess = True
+
+
+            Catch ex As Exception
+                bInitSuccess = False
+                Throw New System.Exception(ex.Message)
+            Finally
+                If (bInitSuccess = False) Then
+                    oPD.Dispose()
+                    oRichTextBoxPrintCtrl.Dispose()
+                End If
+
+
+
+            End Try
+
+        End Sub
+        Public Sub StartPrinterCmd()
+
+            Dim jobId$
+
+            docinfo1.pDocName = "Test"
+            docinfo1.pOutputFile = vbNullString
+            docinfo1.pDataType = vbNullString
+
+            jobId = StartDocPrinter(hPrinter1, 1, docinfo1)
+            Call StartPagePrinter(hPrinter1)
+
+        End Sub
+
+        Public Sub EndPrinterCmd()
+            Call EndPagePrinter(hPrinter1)
+            Call EndDocPrinter(hPrinter1)
+            Call ClosePrinter(hPrinter1)
+        End Sub
+        Public Sub ResetPrinter()
+
+            Dim EscSeq$
+            Dim written&
+
+            Call StartPrinterCmd()
+            EscSeq$ = Chr(18)
+            Call WritePrinter(hPrinter1, EscSeq$, Len(EscSeq$), written)
+
+            Call EndPrinterCmd()
+        End Sub
+
+        Public Sub PrintDraft(ByVal ibr As String, _
+        ByVal ibrnm As String, _
+        ByVal itele As String, _
+        ByVal idate As String, _
+        ByVal pname As String, _
+        ByVal dbr As String, _
+        ByVal dbrnm As String, _
+        ByVal dftnum As String, _
+        ByVal amnt As String, _
+        ByVal srl As String, _
+        ByVal code As String, _
+        ByVal tel As String, _
+        ByVal qnm As String)
+
+            Dim i As Integer
+            i = rcptrn(ibr, ibrnm, itele, idate, pname, dbr, dbrnm, dftnum, amnt, srl, code, tel, qnm)
+
+        End Sub
+
+        Public Sub PrintAdviseDraft(ByVal ibr As String, _
+         ByVal ibrnm As String, _
+         ByVal itele As String, _
+         ByVal idate As String, _
+         ByVal pname As String, _
+         ByVal dbr As String, _
+         ByVal dbrnm As String, _
+         ByVal dftnum As String, _
+         ByVal amnt As String, _
+         ByVal srl As String, _
+         ByVal code As String, _
+         ByVal tel As String, _
+         ByVal qnm As String, _
+         ByVal sCustCode As String, _
+         ByVal sCustAddress1 As String, _
+         ByVal sCustAddress2 As String, _
+         ByVal sCustAddress3 As String, _
+         ByVal sCustAddress4 As String, _
+         ByVal sCustAddress5 As String, _
+         ByVal sRefNo As String, _
+         ByVal amt As String, _
+         ByVal Name As String, _
+         ByVal sRemitterName As String)
+
+            Dim i As Integer
+            i = rcptrnadv(ibr, ibrnm, itele, idate, pname, dbr, dbrnm, dftnum, amnt, srl, code, tel, qnm, sCustCode, sCustAddress1, sCustAddress2, sCustAddress3, sCustAddress4, sCustAddress5, sRefNo, amt, Name, sRemitterName)
+
+        End Sub
+#End Region
+
+
+
+
+
+#Region "CONSTRUCTOR"
+
+        Public Sub CRTFPrinter()
+            Try
+
+
+                oPD = New PrintDocument()
+                oPD.PrinterSettings = New PrinterSettings()
+                oRichTextBoxPrintCtrl = New RichTextBoxPrintCtrl.RichTextBoxPrintCtrl()
+                PrinterObject = New SPageSettings()
+                PrinterObject.Orientation = 1
+                oPD.DefaultPageSettings.Landscape = False
+                bInitSuccess = True
+
+
+            Catch ex As Exception
+                bInitSuccess = False
+                Throw New System.Exception(ex.Message)
+            Finally
+                If (bInitSuccess = False) Then
+                    oPD.Dispose()
+                    oRichTextBoxPrintCtrl.Dispose()
+                End If
+
+
+
+            End Try
+
+
+
+        End Sub
+
+
+
+
+        Public Sub InitialisePrinter(ByVal sPrinterName As String)
+
+
+            Try
+
+
+                Dim nCount As Integer
+                Dim sErrorMsg As String
+                Dim sCommands() As String
+                Dim Eseq As String = ""
+                Dim written&
+                Try
+                    sCommands = Split(sPrinterName, ";")
+                Catch ex As Exception
+                    sCommands = Split(sPrinterName, "")
+                End Try
+
+                sPrinterName = sCommands(0)
+                Dim sPrinters As String
+                oPD.PrinterSettings.PrinterName = sPrinterName
+                If OpenPrinter(oPD.PrinterSettings.PrinterName, hPrinter1, 0) = 0 Then
+                Else
+                    Call StartPrinterCmd()
+
+                    If sCommands(1) = "17" Then
+                        Eseq$ = Chr(18)
+                        Call WritePrinter(hPrinter1, Eseq$, Len(Eseq$), written)
+
+                        Eseq$ = Chr(15)
+                        Call WritePrinter(hPrinter1, Eseq$, Len(Eseq$), written)
+                        PrinterObject.Orientation = 2
+                        oPD.PrinterSettings.DefaultPageSettings.PaperSize = New PaperSize("LedgerForm", "1700", "1100")
+                        oPD.PrinterSettings.DefaultPageSettings.Margins = New Margins(0, 0, 0, 0)
+                        oPD.DefaultPageSettings.PaperSize = New PaperSize("LedgerForm", "1700", "1100")
+                        oPD.DefaultPageSettings.Margins = New Margins(0, 0, 0, 0)
+
+                    End If
+
+                    If sCommands(1) = "12" Then
+                        Eseq$ = Chr(18)
+                        Call WritePrinter(hPrinter1, Eseq$, Len(Eseq$), written)
+                        Eseq$ = Chr(27) & Chr(58)
+                        Call WritePrinter(hPrinter1, Eseq$, Len(Eseq$), written)
+                        PrinterObject.Orientation = 2
+                        oPD.PrinterSettings.DefaultPageSettings.PaperSize = New PaperSize("LetterForm", "1100", "850")
+                        oPD.PrinterSettings.DefaultPageSettings.Margins = New Margins(0, 0, 0, 0)
+                        oPD.DefaultPageSettings.PaperSize = New PaperSize("LetterForm", "1100", "850")
+                        oPD.DefaultPageSettings.Margins = New Margins(0, 0, 0, 0)
+                    End If
+
+                    oPD.PrinterSettings.DefaultPageSettings.Margins = New Margins(0, 0, 0, 0)
+                    oPD.DefaultPageSettings.Margins = New Margins(0, 0, 0, 0)
+
+                    Call EndPrinterCmd()
+                End If
+                If sPrinterName <> "" Then
+                    sErrorMsg = "The Printer " & sPrinterName & " could not be initialised. "
+                    If nCount = 0 Then
+                        sErrorMsg = sErrorMsg & "There are no printers configured on this server."
+                    Else
+                        sErrorMsg = sErrorMsg & "Bancslink printer queue settings do not match any printers configured on the Bancslink server. The printers on server: " & sPrinters & ". An administrator must either change the printer names on the BancsLink server or reconfigure the printer in the BancsLink printer queue administration."
+                    End If
+                Else
+                End If
+            Catch ex As Exception
+            Finally
+               
+            End Try
+        End Sub
+
+        Public Sub LoadFile(ByVal sFilePath As String, Optional ByVal vFileType As String = "")
+
+            If sFilePath = "" Then
+            End If
+
+            If vFileType = "" Then
+                oRichTextBoxPrintCtrl.LoadFile(sFilePath)
+            Else
+                Dim rtType As RichTextBoxStreamType = RichTextBoxStreamType.RichText
+                oRichTextBoxPrintCtrl.LoadFile(sFilePath, vFileType)
+            End If
+
+        End Sub
+
+        Public Sub printRtf()
+
+            If PrinterObject.Orientation = 1 Then
+                oPD.DefaultPageSettings.Landscape = False
+            Else
+                oPD.DefaultPageSettings.Landscape = True
+            End If
+
+            'Start of IR 261345
+            If PrinterObject.Orientation = 2 Then
+                Dim Ps As PaperSize
+                For ix As Integer = 0 To oPD.PrinterSettings.PaperSizes.Count - 1
+                    If oPD.PrinterSettings.PaperSizes(ix).Kind = PaperKind.A4 Then
+                        Ps = oPD.PrinterSettings.PaperSizes(ix)
+                        oPD.DefaultPageSettings.PaperSize = Ps
+                    End If
+                Next
+                oPD.PrinterSettings.DefaultPageSettings.Margins.Left = 0
+                oPD.PrinterSettings.DefaultPageSettings.Margins.Right = 0
+                oPD.PrinterSettings.DefaultPageSettings.Margins.Top = 0
+                oPD.PrinterSettings.DefaultPageSettings.Margins.Bottom = 0
+            Else
+                oPD.PrinterSettings.DefaultPageSettings.PaperSize = New PaperSize("BPA", "827", "1169")
+                oPD.PrinterSettings.DefaultPageSettings.Margins = New Margins(0, 0, 0, 0)
+                oPD.DefaultPageSettings.PaperSize = New PaperSize("BPA", "827", "1169")
+                oPD.DefaultPageSettings.Margins = New Margins(0, 0, 0, 0)
+                oPD.PrinterSettings.DefaultPageSettings.Margins = New Margins(0, 0, 0, 0)
+                oPD.DefaultPageSettings.Margins = New Margins(0, 0, 0, 0)
+            End If
+            'End of IR 261345
+
+            oPD.Print()
+
+            'Start of IR 261345
+            'Dim Ps As PaperSize
+            'For ix As Integer = 0 To oPD.PrinterSettings.PaperSizes.Count - 1
+            '    If oPD.PrinterSettings.PaperSizes(ix).Kind = PaperKind.A4 Then
+            '        Ps = oPD.PrinterSettings.PaperSizes(ix)
+            '        oPD.DefaultPageSettings.PaperSize = Ps
+            '    End If
+            'Next
+
+            'If PrinterObject.Orientation = 2 Then
+            '    oPD.PrinterSettings.DefaultPageSettings.Margins.Left = 0
+            '    oPD.PrinterSettings.DefaultPageSettings.Margins.Right = 0
+            '    oPD.PrinterSettings.DefaultPageSettings.Margins.Top = 0
+            '    oPD.PrinterSettings.DefaultPageSettings.Margins.Bottom = 0
+            '    'Start of IR 261209
+            'Else
+            '    'oPD.PrinterSettings.DefaultPageSettings.Margins.Left = 50
+            '    'oPD.PrinterSettings.DefaultPageSettings.Margins.Right = 70
+            '    'oPD.PrinterSettings.DefaultPageSettings.Margins.Top = 88
+            '    'oPD.PrinterSettings.DefaultPageSettings.Margins.Bottom = 50
+            '    oPD.PrinterSettings.DefaultPageSettings.Margins.Left = 50
+            '    oPD.PrinterSettings.DefaultPageSettings.Margins.Right = 70
+            '    oPD.PrinterSettings.DefaultPageSettings.Margins.Top = 88
+            '    oPD.PrinterSettings.DefaultPageSettings.Margins.Bottom = 50
+            '    'End of IR 261209
+            'End If
+            'End of IR 261345
+
+        End Sub
+
+        
+#Region "Print Document Events"
+
+
+        Private Sub opd_BeginPrint(ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintEventArgs) Handles oPD.BeginPrint
+
+
+
+
+            StartPrinterCmd()
+
+            checkPrint = 0
+
+
+        End Sub
+
+        Private Sub opd_PrintPage(ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs) Handles oPD.PrintPage
+            Try
+
+
+                If (oPD.DefaultPageSettings.PaperSize.PaperName = "LedgerForm") Then
+                    oRichTextBoxPrintCtrl.Text = oRichTextBoxPrintCtrl.Text.Trim()
+                End If
+
+
+
+
+                checkPrint = oRichTextBoxPrintCtrl.Print(checkPrint, oRichTextBoxPrintCtrl.TextLength, e)
+                If checkPrint < oRichTextBoxPrintCtrl.TextLength Then
+                    e.HasMorePages = True
+                Else
+                    e.HasMorePages = False
+                End If
+
+            Catch ex As Exception
+            Finally
+            End Try
+        End Sub
+
+
+#End Region
+
+
+
+
+
+#End Region
+
+
+
+    End Class
+
+
+End Namespace
