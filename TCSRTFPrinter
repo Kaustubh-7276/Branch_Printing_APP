@@ -1,0 +1,2345 @@
+Enum IOILines
+    Line0 = 0
+    Line1 = 5
+    Line2 = 15
+    Line3 = 25
+    Line4 = 50
+    Line5 = 70
+
+    Line6 = 90
+    Line7 = 110
+    Line8 = 125
+    Line9 = 140
+    Line10 = 160
+
+    Line11 = 170
+    Line12 = 190
+    Line13 = 210
+    Line14 = 230
+    Line15 = 255
+
+    Line16 = 295
+    Line17 = 315
+    Line18 = 335
+    Line19 = 365
+End Enum
+Enum IOIPageSettings
+    LeftMargin = 5
+    Top = 0
+End Enum
+Friend Class TCSRTFPrinter : Implements FlowDistributorTypes.IWorkflowComponentInterface
+
+    Private oLogger As FlowDistributorTypes.CFNSEventLogger
+    Private printFont As Font
+    Private streamToPrint As StreamReader
+    Private m_BankName As String
+    Private m_BankNameHindi As String
+    Private m_BankNameDrawee As String
+    Private m_BankNameHindiDrawee As String
+    Dim AddAndInInteger As Boolean
+    Dim sCurrency As String
+    Dim sDefaultCurrency As String = "INR"
+
+    Const CNST_SBI As String = "STATE BANK OF INDIA"
+    Const CNST_SBBJ As String = "STATE BANK OF BIKANER & JAIPUR"
+    Const CNST_SBH As String = "STATE BANK OF HYDERABAD"
+    Const CNST_SBIn As String = "STATE BANK OF INDORE"
+    Const CNST_SBM As String = "STATE BANK OF MYSORE"
+    Const CNST_SBP As String = "STATE BANK OF PATIALA"
+    Const CNST_SBS As String = "STATE BANK OF SAURASHTRA"
+    Const CNST_SBT As String = "STATE BANK OF TRAVANCORE"
+
+    Const CNST_Hindi_SBBJ As String = "Ô›ñ› ºãö‡ãŠ ‚ããùû¹ãŠ ºãäã‡ãŠã¶ãñÀ †¥¡ •ã¾ã¹ãìÀ"
+    Const CNST_Hindi_SBH As String = "Ô›ñ› ºãö‡ãŠ ‚ããùû¹ãŠ ÖõªÀãºããª"
+    Const CNST_Hindi_SBIn As String = "Ô›ñ› ºãö‡ãŠ ‚ããùû¹ãŠ  ƒªãñÀ"
+    Const CNST_Hindi_SBM As String = "Ô›ñ› ºãö‡ãŠ ‚ããùû¹ãŠ  ½ãõÔãìÀ"
+    Const CNST_Hindi_SBP As String = "Ô›ñ› ºãö‡ãŠ ‚ããùû¹ãŠ  ¹ããä›¾ããÊãã"
+    Const CNST_Hindi_SBS As String = "Ô›ñ› ºãö‡ãŠ ‚ããùû¹ãŠ  ÔããùÀãÔ›È"
+    Const CNST_Hindi_SBT As String = "Ô›ñ› ºãö‡ãŠ ‚ããùû¹ãŠ  ›ÈãÌãâ‡ãŠãñÀ"
+
+    Const CNST_Hindi_SBI As String = "¼ããÀ¦ããè¾ã Ô›ñ› ºãö‡ãŠ "
+
+    Const CNST_EnglishFontNamecourier As String = "Arial"
+    Const CNST_EnglishFontName As String = "APS-C-DV-Prakash"
+    Const CNST_HindiFontName As String = "APS-C-DV-Prakash"
+
+
+    Const CNST_ValidForSixMonthsOnly As String = "‡ãñŠÌãÊã œÖ ½ãÖãè¶ããñ ‡ãñŠ ãäÊã¾ãñ Öãè Ìãõ£ã "
+    Const CNST_IssuingBranch As String = "•ããÀãè ‡ãŠÀ¶ãñ ÌããÊããè ÍããŒãã "
+    Const CNST_CodeNo As String = "‡ãŠãñü¡ ‰ãâŠ ."
+    Const CNST_Date As String = "ãäª¶ããâ‡ãŠ"
+    Const CNST_RUPEES As String = "Á¹ã¾ãñ"
+    Const CNST_OnDemandPay As String = "½ããâØãñ •ãã¶ãñ¹ãÀ"
+    Const CNST_OR_ORDER As String = "¾ãã „¶ã‡ãñŠ ‚ããªñÍã ¹ãÀ"
+    Const CNST_OR_ORDERBC As String = "‡ãŠãñ ¾ãã „¶ã‡ãñŠ ‚ããªñÍã ¹ãÀ"
+    Const CNST_ADA_Kare As String = "‚ãªã ‡ãŠÀò |"
+    Const CNST_VALUE_RECEIVED As String = "½ãîÊ¾ã ¹ãÆã¹¦ã"
+    Const CNST_DRAWEE_BRANCH As String = "‚ãªã‡ãŠ¦ããÃ ÍããŒãã "
+    Const CNST_BankersCheque As String = "ºãö‡ãŠÔãÃ Þãõ‡ãŠ"
+    Const CNST_DemandDraft As String = "½ããâØã¡Èã¹ã‹›"
+    Const CNST_Negotiable As String = "¼ããÀ¦ããè¾ã Ô›ñ› ºãú‡ãŠ ‡ãŠãè Ôã¼ããè ÍãŒãã‚ããñ  ½ãò Ôã½ã½ãîÊ¾ã ¹ãÀ ¹ãÀ‡ãŠã½¾ã"
+    Const CNST_GC As String = "„¹ãÖãÀ Þãùû‡ãŠ"
+    Const CNST_For As String = "‰ãìŠ¦ãñ"
+    Const CNST_NOT_TRANSFERABLE As String = "‚ãÖÔ¦ããâ¦ãÀ¥ããè¾ã"
+    Const CNST_RS As String = "Â"
+    Const CNST_Ps As String = "¹ãõ"
+    Dim easyPrintResult As Boolean = True
+
+    Public Function processDocument(ByVal ComponentDocuments As FlowDistributorTypes.CFNSComponentDocuments) As FlowDistributorTypes.CFNSComponentDocuments Implements FlowDistributorTypes.IWorkflowComponentInterface.processDocument
+
+        Dim nCurrentInDoc As Integer
+        Dim xmlCurrentInDoc As FlowDistributorTypes.CFNSComponentDocument
+        Dim xmlCurrentOutDoc As FlowDistributorTypes.CFNSComponentDocument
+        Dim xmlReturnDocuments As FlowDistributorTypes.CFNSComponentDocuments
+
+        Try
+            xmlReturnDocuments = ComponentDocuments.createReturnDocuments
+            For nCurrentInDoc = 0 To ComponentDocuments.ComponentDocumentCount - 1
+                xmlCurrentInDoc = ComponentDocuments.ComponentDocument(nCurrentInDoc)
+                xmlCurrentOutDoc = xmlReturnDocuments.ComponentDocument(nCurrentInDoc)
+
+                Select Case xmlCurrentInDoc.methodName.ToUpper
+
+                    Case "PRINTFILE"
+                        DoPrintFile(xmlCurrentInDoc)
+
+                    Case "PRINTALLFILES"
+                        DoPrintAllFiles(xmlCurrentInDoc)
+
+                    Case "PRINTTEXT"
+                        DoPrintText(xmlCurrentInDoc)
+
+                    Case "PRINTDRAFT"
+                        PrintDraft(xmlCurrentInDoc)
+
+                    Case "PRINTINSTRUMENT"
+                        PrintInstrumentIOI(xmlCurrentInDoc)
+
+                    Case Else
+                        Throw New Exception("Invalid method name: " + xmlCurrentInDoc.methodName)
+
+                End Select
+            Next
+            xmlCurrentOutDoc.methodResult = "True"
+            If easyPrintResult = False Then
+                xmlCurrentOutDoc.methodResult = "TechError"
+            End If
+            Return xmlReturnDocuments
+
+        Catch e As Exception
+            oLogger.WriteEntry(e.Message, EventLogEntryType.Error)
+            Throw e
+        End Try
+
+    End Function
+    Public Sub LogWriterCheck(ByVal strMessage As String)
+
+        Dim BPAxml As New System.Xml.XmlDocument()
+        Dim goodSettings1 As XmlReaderSettings = New XmlReaderSettings()
+        goodSettings1.DtdProcessing = DtdProcessing.Ignore
+        goodSettings1.XmlResolver = Nothing
+        goodSettings1.ValidationType = ValidationType.Schema
+        goodSettings1.Schemas = New XmlSchemaSet()
+        goodSettings1.MaxCharactersFromEntities = 1024
+        goodSettings1.IgnoreComments = True
+
+        Dim goodxmlread1 As XmlReader = XmlReader.Create(System.AppDomain.CurrentDomain.BaseDirectory & "\xml\Settings\BranchPrinterLog.xml", goodSettings1)
+        BPAxml.Load(goodxmlread1)
+        goodxmlread1.Close()
+        Dim BPATrace = BPAxml.SelectSingleNode("//BPALogTrace").InnerText
+        Dim BPAPath = BPAxml.SelectSingleNode("//BPALogPath").InnerText
+
+        If (BPATrace.ToUpper = "ON") Then
+
+            If Not Directory.Exists(BPAPath + "\" + DateTime.Now.ToString("dd-MMM-yyyy")) Then
+                Directory.CreateDirectory(BPAPath + "\" + DateTime.Now.ToString("dd-MMM-yyyy"))
+            End If
+            Dim logFileName As String = BPAPath + "\" + DateTime.Now.ToString("dd-MMM-yyyy") + ".txt"
+
+            If (File.Exists(logFileName)) Then
+                File.AppendAllText(logFileName, strMessage + Environment.NewLine)
+            Else
+                File.WriteAllText(logFileName, strMessage + Environment.NewLine)
+            End If
+        End If
+    End Sub
+    Private Declare Function printPassbook Lib "..\bin\EasyPrinter.dll" _
+    (ByVal filename As String, _
+    ByVal printername As String, _
+    ByVal type As Char, _
+    ByVal exepath As String) As Integer
+    Private Declare Function code_gen Lib "CODE.dll" _
+        (ByVal ibr As String, _
+        ByVal dbrcd As String, _
+        ByVal dftnum As String, _
+        ByVal pname As String, _
+        ByVal fdig As String, _
+        ByVal amt As String, _
+        ByVal rdig As String, _
+        ByVal sr As String, _
+        ByVal dt As String, _
+        ByVal RetCd As String) As Integer
+
+    Private Declare Function rcptrn Lib "findft.dll" _
+        (ByVal ibr As String, _
+        ByVal ibrnm As String, _
+        ByVal itele As String, _
+        ByVal idate As String, _
+        ByVal pname As String, _
+        ByVal dbr As String, _
+        ByVal dbrnm As String, _
+        ByVal dftnum As String, _
+        ByVal amnt As String, _
+        ByVal srl As String, _
+        ByVal code As String, _
+        ByVal tel As String, _
+        ByVal qnm As String) As Integer
+
+    Private Declare Function PrintInstrument Lib "IOIInstrumentPrinting.dll" _
+        (ByVal ibr As String, _
+        ByVal ibrnm As String, _
+        ByVal itele As String, _
+        ByVal idate As String, _
+        ByVal pname As String, _
+        ByVal dbr As String, _
+        ByVal dbrnm As String, _
+        ByVal dftnum As String, _
+        ByVal amnt As String, _
+        ByVal srl As String, _
+        ByVal code As String, _
+        ByVal tel As String, _
+        ByVal qnm As String, _
+        ByVal InstType As String _
+        ) As Integer
+
+    Private Sub PrintDraft(ByVal xmlCurrentInDoc As FlowDistributorTypes.CFNSComponentDocument)
+
+        Dim fdig As String
+        Dim rdig As String
+        Dim dt As String
+        Dim amt As String
+        Dim RetCd As String
+
+        Dim ibrnm As String
+        Dim itele As String
+        Dim idate As String
+        Dim dbrnm As String
+        Dim srl As String
+        Dim code As String
+        Dim tel As String
+        Dim qnm As String
+        Dim amnt As String
+        Dim dbr As String
+        Dim ibr As String
+        Dim dftnum As String
+        Dim pname As String
+
+        Dim pfname As String
+        Dim plname As String
+        Dim Prefix As String
+        Dim TempHostDate As String
+        Dim TempSplitArray As String()
+        Dim DOIArray As String()
+        Dim sIssuingBankCode As String
+        Dim sDrawingBankCode As String
+        Dim BankDetailsconfig As New Xml.XmlDocument()
+        Dim sSource As String
+        Dim sCustCode As String
+        Dim sCustAddress1 As String
+        Dim sCustAddress2 As String
+        Dim sCustAddress3 As String
+        Dim sCustAddress4 As String
+        Dim sCustAddress5 As String
+        Dim sRefNo As String
+        Dim Name As String
+        Dim sRemitterName As String
+        Dim amt1 As String
+        Dim amt2 As String
+        Dim amt_arr As Array
+        Dim sBatchId As String
+        Dim xmlComponentProperty As New Xml.XmlDocument()
+        Dim dftnum1 As String
+        Dim dftnumful As String
+        Dim iptele As String
+        'Start of IR 19070031
+        Dim biakkey As New TCSBiakKeyWrapper.tcsbiakkeywrapper
+        'End of IR 19070031
+
+        Dim sTextFilePath As String
+        qnm = xmlCurrentInDoc.getMethodParameterText("printerName", True)
+        LogWriterCheck("printerName: " + qnm.ToString)
+        ibr = xmlCurrentInDoc.getMethodParameterText("IssuingBranchID", True)
+        LogWriterCheck("IssuingBranchID: " + ibr.ToString)
+        dbr = xmlCurrentInDoc.getMethodParameterText("DraweeBranchID", True)
+        LogWriterCheck("DraweeBranchID: " + dbr.ToString)
+        dbrnm = xmlCurrentInDoc.getMethodParameterText("DraweeBranchName", True)
+        LogWriterCheck("DraweeBranchName: " + dbrnm.ToString)
+        pfname = xmlCurrentInDoc.getMethodParameterText("PayeeFName", True)
+        LogWriterCheck("PayeeFName: " + pfname.ToString)
+        plname = xmlCurrentInDoc.getMethodParameterText("PayeeLName", True)
+        LogWriterCheck("PayeeLName: " + plname.ToString)
+        dftnum = xmlCurrentInDoc.getMethodParameterText("DraftNumber", True).PadLeft(6, "0"c)
+        LogWriterCheck("DraftNumber: " + dftnum.ToString)
+        dftnum1 = xmlCurrentInDoc.getMethodParameterText("DraftNumber", True).PadLeft(15, "0"c)
+        LogWriterCheck("DraftNumber: " + dftnum1.ToString)
+        Prefix = xmlCurrentInDoc.getMethodParameterText("Prefix", True)
+        LogWriterCheck("Prefix: " + Prefix.ToString)
+        amnt = xmlCurrentInDoc.getMethodParameterText("DraftAmount", True)
+        LogWriterCheck("DraftAmount: " + amnt.ToString)
+        TempHostDate = xmlCurrentInDoc.getMethodParameterText("HostDate", True) 'Parameter 4: Issue Date
+        LogWriterCheck("HostDate: " + TempHostDate.ToString)
+        ibrnm = xmlCurrentInDoc.getMethodParameterText("IssuingBranchName", True)
+        LogWriterCheck("IssuingBranchName: " + ibrnm.ToString)
+        itele = xmlCurrentInDoc.getMethodParameterText("IssuingBranchTel", True)
+        iptele = xmlCurrentInDoc.getMethodParameterText("IssuingBranchIPTel", True)
+        sDrawingBankCode = Convert.ToInt16(xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//body/screenData/DefInteger3").InnerText).ToString
+        sSource = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//Source").InnerText
+        idate = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//date1").InnerText
+        If (sSource = "R") Then
+            sCustCode = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//TRANSDATAADVXML/screenData/CustCode").InnerText
+            sCustAddress1 = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//TRANSDATAADVXML/screenData/DefaultString20").InnerText
+            sCustAddress2 = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//TRANSDATAADVXML/screenData/DefaultString21").InnerText
+            sCustAddress3 = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//TRANSDATAADVXML/screenData/DefaultString22").InnerText
+            sCustAddress4 = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//TRANSDATAADVXML/screenData/DefaultString23").InnerText
+            sCustAddress5 = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//TRANSDATAADVXML/screenData/DefaultString24").InnerText
+            sRefNo = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//TRANSDATAADVXML/screenData/RefNo").InnerText
+            Name = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//TRANSDATAADVXML/screenData/BenNamAdv").InnerText
+            sRemitterName = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//TRANSDATAADVXML/screenData/RemNam").InnerText
+            sBatchId = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//screenData/batchID").InnerText
+        End If
+        'Start of IR 20090073
+        'BankDetailsconfig.Load(System.AppDomain.CurrentDomain.BaseDirectory & "\BankDetails.config")
+        Dim goodSettingsws As XmlReaderSettings = New XmlReaderSettings()
+        goodSettingsws.DtdProcessing = DtdProcessing.Ignore
+        goodSettingsws.XmlResolver = Nothing
+        goodSettingsws.ValidationType = ValidationType.Schema
+        goodSettingsws.Schemas = New XmlSchemaSet()
+        goodSettingsws.MaxCharactersFromEntities = 1024
+        goodSettingsws.IgnoreComments = True
+        Dim goodxmlreadws As XmlReader = XmlReader.Create(System.AppDomain.CurrentDomain.BaseDirectory & "\BankDetails.config", goodSettingsws)
+        BankDetailsconfig.Load(goodxmlreadws)
+        goodxmlreadws.Close()
+        'End of IR 20090073
+        sIssuingBankCode = (Convert.ToInt16(BankDetailsconfig.SelectSingleNode("//BankCode").InnerText)).ToString
+
+        pname = pfname.Trim() + plname.Trim()
+        If pname.Length > 50 Then
+            pname = pname.Substring(0, 50)
+        End If
+
+        dftnum = Prefix.Trim() + dftnum.Trim()
+        dftnumful = Prefix.Trim() + dftnum1.Trim()
+        If dftnum.Length > 10 Then
+            dftnum = Right(dftnum, 10)
+        End If
+
+
+
+        ibr = ibr.PadLeft(6, "0")
+        dbr = dbr.PadLeft(6, "0")
+
+        fdig = amnt.Chars(0)
+        rdig = amnt.Split("."c)(0).Length
+
+        amt = amnt.Split(Convert.ToChar("."))(0) * 100
+        amt = amt.PadLeft(14, "0"c)
+
+
+        Randomize()
+        'Start of IR 20090073
+        'srl = CInt(Int((999999 * Rnd()) + 1)).ToString
+        srl = CInt(99999 * ((CInt(Right(Format(DateAndTime.Now, "hhmmsssfff"), 4).ToString + Right(Format(DateAndTime.Now, "hhmmsssfff"), 3).ToString) / 10000000) + 1)).ToString
+	'End of IR 20090073
+        DOIArray = TempHostDate.Split("/"c)
+        dt = DOIArray(0).PadLeft(2, "0"c) + DOIArray(1).PadLeft(2, "0"c) + DOIArray(2).Substring(2, 2)
+
+        RetCd = "111111"
+
+        'Start of IR 19070031
+        'code_gen(ibr, dbr, dftnum, pname, fdig, amt, rdig, srl, dt, RetCd)
+        RetCd = biakkey.code_gennew(ibr, dbr, dftnum, pname, fdig, amt, rdig, srl, dt, TempHostDate, RetCd)
+        'End of IR 19070031
+        code = RetCd
+
+        tel = "N"
+
+        ibrnm = ibrnm.PadRight(30)
+
+        itele = itele.PadRight(12)
+        If itele.Length > 12 Then
+            itele = itele.Substring(0, 12)
+        End If
+
+        iptele = iptele.PadRight(6)
+        If iptele.Length > 6 Then
+            iptele = iptele.Substring(0, 6)
+        End If
+
+        itele = itele + ";" + iptele
+
+        pname = pname.PadRight(50, "*"c)
+
+        If (dbrnm.Length > 35) Then
+            dbrnm = dbrnm.Trim().PadLeft(35)
+        Else
+            dbrnm = dbrnm.PadLeft(35)
+        End If
+
+        dftnum = dftnum.PadRight(10)
+        If (amnt.IndexOf(".") > -1) Then
+            amt_arr = amnt.Split(Convert.ToChar("."))
+            amt1 = amt_arr(1).Padright(2, "0"c)
+            amt2 = amt_arr(0) & "." & amt1
+        Else
+            amt2 = amnt
+        End If
+
+        amnt = amnt * 100
+
+        srl.PadLeft(6, "0")
+
+        'Start of IR 20090073
+        'xmlComponentProperty.Load(System.AppDomain.CurrentDomain.BaseDirectory & "\xml\Settings\FNSComponentProperties.xml")
+        goodSettingsws.DtdProcessing = DtdProcessing.Ignore
+        goodSettingsws.XmlResolver = Nothing
+        goodSettingsws.ValidationType = ValidationType.Schema
+        goodSettingsws.Schemas = New XmlSchemaSet()
+        goodSettingsws.MaxCharactersFromEntities = 1024
+        goodSettingsws.IgnoreComments = True
+        goodxmlreadws = XmlReader.Create(System.AppDomain.CurrentDomain.BaseDirectory & "\xml\Settings\FNSComponentProperties.xml", goodSettingsws)
+        xmlComponentProperty.Load(goodxmlreadws)
+        goodxmlreadws.Close()
+        'End of IR 20090073
+        sTextFilePath = Convert.ToString(xmlComponentProperty.SelectSingleNode("//ReportPath").InnerText)
+        Dim strPath As String
+        If (sSource = "R") Then
+            Dim strDate As String = Now.Year.ToString() & Now.Month.ToString().PadLeft(2, "0") & Now.Day.ToString().PadLeft(2, "0")
+            strPath = sTextFilePath & "\" & strDate & "\DDwithAdvice_" & sBatchId & ".txt"
+            If Not Directory.Exists(sTextFilePath & "\" & strDate) Then
+                Directory.CreateDirectory(sTextFilePath & "\" & strDate)
+            End If
+            Dim fs As FileStream = New FileStream(strPath, FileMode.Append, FileAccess.Write)
+            Dim strmWriter As New StreamWriter(fs)
+            strmWriter.WriteLine(sRefNo & " " & dftnum)
+            strmWriter.Flush()
+            strmWriter.Close()
+            fs.Close()
+        End If
+        If (sSource = "C") Then
+            Dim i As Integer
+            Dim oRTFPrinter As New FNSRTFPrinterAX.CRTFPrinter()
+
+            If (sIssuingBankCode <> "0") Then
+                ibr = Right(ibr, 4)
+                ibr = sIssuingBankCode + " "c + ibr
+            End If
+            If (sDrawingBankCode <> "0") Then
+                dbr = Right(dbr, 4)
+                dbr = sDrawingBankCode + " "c + dbr
+            End If
+
+            oRTFPrinter.PrintDraft(ibr, ibrnm, itele, TempHostDate, pname, dbr, dbrnm, dftnumful, amnt, srl, code, tel, qnm)
+
+        End If
+
+
+        If (sSource = "R") Then
+            If (sIssuingBankCode <> "0") Then
+                ibr = Right(ibr, 4)
+                ibr = sIssuingBankCode + " "c + ibr
+            End If
+            If (sDrawingBankCode <> "0") Then
+                dbr = Right(dbr, 4)
+                dbr = sDrawingBankCode + " "c + dbr
+            End If
+            Dim oRTFAdvisePrinter As New FNSRTFPrinterAX.CRTFPrinter()
+            oRTFAdvisePrinter.PrintAdviseDraft(ibr, ibrnm, itele, TempHostDate, pname, dbr, dbrnm, dftnumful, amnt, srl, code, tel, qnm, sCustCode, sCustAddress1, sCustAddress2, sCustAddress3, sCustAddress4, sCustAddress5, sRefNo, amt2, Name, sRemitterName)
+        End If
+
+    End Sub
+
+    'Start of IR 261345
+    'Private Sub PrintInstrumentIOI(ByVal xmlCurrentInDoc As FlowDistributorTypes.CFNSComponentDocument) As String
+    Private Function PrintInstrumentIOI(ByVal xmlCurrentInDoc As FlowDistributorTypes.CFNSComponentDocument) As String
+        'End of IR 261345
+        Dim fdig As String
+        Dim rdig As String
+        Dim dt As String
+        Dim amt As String
+        Dim RetCd As String
+
+
+        Dim ibrnm As String
+        Dim itele As String
+        Dim dbrnm As String
+        Dim srl As String
+        Dim code As String
+        Dim tel As String
+        Dim qnm As String
+        Dim amnt As String
+        Dim dbr As String
+        Dim ibr As String
+        Dim dftnum As String
+        Dim pname As String
+        Dim pNameMaxLength As Int32 = 100
+		    'Start of IR 261345
+        Dim ReturnPrintFlag As String = "NA"
+		    'End of IR 261345
+		    
+		    'Start of IR 19070031
+        Dim biakkey As New TCSBiakKeyWrapper.tcsbiakkeywrapper
+        'End of IR 19070031
+
+        Dim BankDetailsconfig As New Xml.XmlDocument()
+
+        'Start of IR 20090073
+        'BankDetailsconfig.Load(System.AppDomain.CurrentDomain.BaseDirectory & "\BankDetails.config")
+        Dim goodSettingsws As XmlReaderSettings = New XmlReaderSettings()
+        goodSettingsws.DtdProcessing = DtdProcessing.Ignore
+        goodSettingsws.XmlResolver = Nothing
+        goodSettingsws.ValidationType = ValidationType.Schema
+        goodSettingsws.Schemas = New XmlSchemaSet()
+        goodSettingsws.MaxCharactersFromEntities = 1024
+        goodSettingsws.IgnoreComments = True
+        Dim goodxmlreadws As XmlReader = XmlReader.Create(System.AppDomain.CurrentDomain.BaseDirectory & "\BankDetails.config", goodSettingsws)
+        BankDetailsconfig.Load(goodxmlreadws)
+        goodxmlreadws.Close()
+        'End of IR 20090073
+        Dim sIssuingBankCode As String = (BankDetailsconfig.SelectSingleNode("//BankCode").InnerText).ToString
+
+        'Start of IR 261376
+        Dim appfname As String
+        Dim applname As String
+        Dim appname As String
+        'End of IR 261376
+
+        Dim pfname As String
+        Dim plname As String
+        Dim Prefix As String
+        Dim InstType As String
+        Dim TempHostDate As String
+        Dim TempSplitArray As String()
+        Dim DOIArray As String()
+        Dim DOIArrayduplicate As String()
+        Dim draftnumber As String
+        'start of Ir 21070064
+        Dim chckamnt As Double = 20000
+        Dim test As String = "A/C Payee"
+        'end of Ir 21070064
+       
+        Try
+            qnm = xmlCurrentInDoc.getMethodParameterText("printerName", True) 'Parameter 13: Printer Queue Name
+            ibr = xmlCurrentInDoc.getMethodParameterText("IssuingBranchID", True)
+            dbr = xmlCurrentInDoc.getMethodParameterText("DraweeBranchID", True)
+            dbrnm = xmlCurrentInDoc.getMethodParameterText("DraweeBranchName", True)
+            dbrnm = dbrnm.Trim()
+            pfname = xmlCurrentInDoc.getMethodParameterText("PayeeFName", True)
+            plname = xmlCurrentInDoc.getMethodParameterText("PayeeLName", True)
+
+            'Start of IR 261376
+            appfname = xmlCurrentInDoc.getMethodParameterText("AppFName", True)
+            applname = xmlCurrentInDoc.getMethodParameterText("AppLName", True)
+            appname = appfname.Trim() + " " + applname.Trim()
+            'End of IR 261376
+
+            Prefix = xmlCurrentInDoc.getMethodParameterText("Prefix", True)
+            amnt = xmlCurrentInDoc.getMethodParameterText("DraftAmount", True)
+            TempHostDate = xmlCurrentInDoc.getMethodParameterText("HostDate", True)
+            ibrnm = xmlCurrentInDoc.getMethodParameterText("IssuingBranchName", True)
+            ibrnm = ibrnm.Trim()
+            itele = xmlCurrentInDoc.getMethodParameterText("IssuingBranchTel", True)
+            InstType = xmlCurrentInDoc.getMethodParameterText("InstrumentType", True)
+
+            'Start of IR 22050101
+            'pname = pfname.Trim() + " " + plname.Trim()
+            pname = LTrim(pfname) + RTrim(plname)
+            'End of IR 22050101
+            If pname.Length > pNameMaxLength Then
+                pname = pname.Substring(0, pNameMaxLength)
+            End If
+            Dim isduplicate = (xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//body/screenData/DefaultString3").InnerText).ToString
+            Dim sdraweeBankCode = Convert.ToInt16(xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//body/screenData/DefInteger3").InnerText).ToString
+            Dim issuedate = ""
+
+            If (isduplicate = "N") Then
+                dftnum = xmlCurrentInDoc.getMethodParameterText("DraftNumber", True)
+            Else
+                dftnum = (xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//body/screenData/DefInteger2").InnerText).ToString
+                issuedate = (xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//body/screenData/Issuedate1").InnerText).ToString
+            End If
+
+            Dim dftnum1 As String
+            dftnum = dftnum.PadLeft(12, "0")
+            dftnum1 = Prefix.Trim() + " " + dftnum.Trim()
+            dftnum = Prefix.Trim() + dftnum.Trim()
+            draftnumber = dftnum
+
+            ibr = ibr.PadLeft(6, "0")
+            dbr = dbr.PadLeft(6, "0")
+
+            fdig = amnt.Chars(0)
+            rdig = amnt.Split("."c)(0).Length
+
+            amt = amnt.Split(Convert.ToChar("."))(0) * 100
+            amt = amt.PadLeft(14, "0"c)
+
+            Randomize()
+            'Start of IR 20090073
+            'srl = CInt(Int((999999 * Rnd()) + 1)).ToString
+	      srl = CInt(99999 * ((CInt(Right(Format(DateAndTime.Now, "hhmmsssfff"), 4).ToString + Right(Format(DateAndTime.Now, "hhmmsssfff"), 3).ToString) / 10000000) + 1)).ToString
+     		'End of IR 20090073
+            
+            Dim duplicatedt As String
+
+            If (isduplicate = "N") Then
+                DOIArray = TempHostDate.Split("/"c)
+                dt = DOIArray(0).PadLeft(2, "0"c) + DOIArray(1).PadLeft(2, "0"c) + DOIArray(2).Substring(2, 2)
+            Else
+                If (issuedate <> "") Then
+                    DOIArrayduplicate = issuedate.Split("/"c)
+                    dt = DOIArrayduplicate(0).PadLeft(2, "0"c) + DOIArrayduplicate(1).PadLeft(2, "0"c) + DOIArrayduplicate(2).Substring(2, 2)
+                Else
+                    dt = ""
+                End If
+            End If
+            If (isduplicate = "Y" And dt <> "") Then
+                issuedate = DOIArrayduplicate(0).PadLeft(2, "0"c) + "/" + DOIArrayduplicate(1).PadLeft(2, "0"c) + "/" + DOIArrayduplicate(2).ToString
+            End If
+
+
+
+            RetCd = "111111"
+            If (isduplicate = "N") Then
+                'Start of IR 19070031
+                'code_gen(ibr, dbr, Right(dftnum, 10), pname, fdig, amt, rdig, srl, dt, RetCd)
+                RetCd = biakkey.code_gennew(ibr, dbr, Right(dftnum, 10), pname, fdig, amt, rdig, srl, dt, TempHostDate, RetCd)
+                'End of IR 19070031
+                code = RetCd
+            Else
+                'Start of IR 19070031
+                'code_gen(ibr, dbr, Right(dftnum, 10), pname, fdig, amt, rdig, srl, dt, RetCd)
+                RetCd = biakkey.code_gennew(ibr, dbr, Right(dftnum, 10), pname, fdig, amt, rdig, srl, dt, TempHostDate, RetCd)
+                'End of IR 19070031
+                code = RetCd
+            End If
+
+            ibr = ibr.Substring(1)
+            dbr = dbr.Substring(1)
+
+            tel = "N"
+
+            ibrnm = ibrnm.PadRight(30)
+
+            itele = itele.PadRight(12)
+            If itele.Length > 12 Then
+                itele = itele.Substring(0, 12)
+            End If
+
+            Dim pnamelength As Int16
+            Dim pnamelength2 As Int16
+            Dim pnameioidd As String
+            Dim pnameioidd2 As String
+            Dim pnameioibc As String
+            Dim pnameioibc2 As String = ""
+            Dim pnamelengthioi As Int16
+            pnamelength = pname.Length
+            pnamelength2 = pname.Length
+            pnamelengthioi = pname.Length
+            pnameioibc = pname
+            pnameioidd = pname
+            pnameioidd2 = pname
+            pnameioibc2 = "**********************************************************************************"
+            If (pnamelength2 > 0) Then
+
+                While (pnamelength2 < pNameMaxLength)
+                    pnameioidd2 = pnameioidd2.PadRight(pnameioidd2.Length + 1, "*"c)
+                    pnameioidd2 = pnameioidd2.PadLeft(pnameioidd2.Length + 1, "*"c)
+                    pnamelength2 = pnamelength2 + 2
+                End While
+            End If
+            pname = pname.PadRight(pNameMaxLength, "*"c)
+
+
+
+            If (dbrnm.Length > 35) Then
+                dbrnm = dbrnm.Trim().PadLeft(35)
+            Else
+                dbrnm = dbrnm.PadLeft(35)
+            End If
+
+            dftnum = dftnum.PadRight(10)
+
+            srl.PadLeft(6, "0")
+            Dim strPaiseDigits As String
+            If (UBound(amnt.Split(".")) = 0) Then
+
+                strPaiseDigits = "00"
+            Else
+                strPaiseDigits = amnt.Split(".")(1)
+                If strPaiseDigits.Length = 1 Then
+                    strPaiseDigits = strPaiseDigits.PadRight(2, "0")
+                End If
+            End If
+
+            m_BankName = GetBankName(sIssuingBankCode.ToCharArray()(2).ToString, 0)
+            m_BankNameHindi = GetBankName(sIssuingBankCode.ToCharArray()(2).ToString, 1)
+
+            m_BankNameDrawee = GetBankName(sdraweeBankCode.ToCharArray()(0).ToString, 0)
+            m_BankNameHindiDrawee = GetBankName(sdraweeBankCode.ToCharArray()(0).ToString, 1)
+
+
+            Dim i As Integer
+            If InstType = "1" And isduplicate = "N" Then
+
+
+                Dim lname As String = ""
+
+                If ((pname + lname).Length) <= pNameMaxLength Then
+                    pname = pname + lname
+                    lname = ""
+                End If
+                Dim objInstrument As New CInstrument(CInstrument.IntrumentTypes.BC, 900, 500, qnm) 'CNST_PRINTERNAME)
+                Dim objInstItemBC As CInstrumentItem()
+                'Start of IR 261376
+                'ReDim objInstItemBC(38)
+                'start of IR 21070064
+                'ReDim objInstItemBC(40)
+                ReDim objInstItemBC(41)
+                'end of Ir 21070064
+                'End of IR 261376
+
+
+
+                Dim namestrngArray(2) As String
+
+                If pnameioibc.Length > 60 Then
+                    namestrngArray(0) = pnameioibc.Substring(0, 60)
+                    namestrngArray(1) = pnameioibc.Substring(60)
+                Else
+                    namestrngArray(0) = pnameioibc
+                End If
+                pnamelengthioi = namestrngArray(0).Length
+
+                If (pnamelengthioi > 0) Then
+                    While (pnamelengthioi < 60)
+                        namestrngArray(0) = namestrngArray(0).PadRight(namestrngArray(0).Length + 1, "*"c)
+                        pnamelengthioi = pnamelengthioi + 1
+                    End While
+                End If
+
+                If Not namestrngArray(1) Is Nothing Then
+                    pnamelengthioi = namestrngArray(1).Length
+
+                    If (pnamelengthioi > 0) Then
+                        While (pnamelengthioi < 60)
+                            namestrngArray(1) = namestrngArray(1).PadRight(namestrngArray(1).Length + 1, "*"c)
+                            pnamelengthioi = pnamelengthioi + 1
+                        End While
+                    End If
+                End If
+                Dim BCFontLargecourier As New Font(CNST_EnglishFontNamecourier, 16, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontLargeboldcourier As New Font(CNST_EnglishFontNamecourier, 16, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim BCSmallFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontLcourier As New Font(CNST_EnglishFontNamecourier, 12, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontLcourier1 As New Font(CNST_EnglishFontNamecourier, 14, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontcourier3 As New Font(CNST_EnglishFontNamecourier, 15, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCTitleFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim BCDigitcourier As New Font(CNST_EnglishFontNamecourier, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+
+                Dim BCFontLarge As New Font(CNST_EnglishFontName, 17, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontLarge18 As New Font(CNST_EnglishFontName, 18, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontLargebold As New Font(CNST_EnglishFontName, 18, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim BCSmallFont As New Font(CNST_EnglishFontName, 11, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFont As New Font(CNST_EnglishFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCTitleFont As New Font(CNST_EnglishFontName, 15, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim BCDigit As New Font(CNST_EnglishFontName, 15, FontStyle.Regular, GraphicsUnit.Pixel)
+
+                Dim BCHindiFontLarge As New Font(CNST_HindiFontName, 19, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim BCSmallHindiFont As New Font(CNST_HindiFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCHindiFont As New Font(CNST_HindiFontName, 14, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCHindiFontL As New Font(CNST_HindiFontName, 16, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCTitleHindiFont As New Font(CNST_HindiFontName, 15, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontcourier2 As New Font(CNST_EnglishFontNamecourier, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+
+                objInstItemBC(1) = New CInstrumentItem(CNST_BankersCheque, IOIPageSettings.LeftMargin + 365, IOILines.Line2 - 10, BCHindiFontLarge, False, False)
+                objInstItemBC(6) = New CInstrumentItem("" + TempHostDate.Replace("/", ""), IOIPageSettings.LeftMargin + 610, IOILines.Line1, BCFontcourier3, True, True, 20, 18, 1, 1, False)
+                objInstItemBC(13) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 540, IOILines.Line1 - 2, BCFontcourier, False, False)
+                objInstItemBC(7) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 505, IOILines.Line1 - 3, BCHindiFont, False, False)
+                objInstItemBC(8) = New CInstrumentItem("DDMMYYYY", IOIPageSettings.LeftMargin + 610, IOILines.Line1 + 20, BCFontcourier, True, False, 20, 18, 1, 1, False, True)
+                objInstItemBC(9) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 510, IOILines.Line4 - 8, BCFontcourier, False, False)
+                objInstItemBC(3) = New CInstrumentItem(CNST_NOT_TRANSFERABLE, IOIPageSettings.LeftMargin + 300, IOILines.Line13 + 20, BCSmallHindiFont, False, False)
+                objInstItemBC(4) = New CInstrumentItem("/ NOT TRANSFERABLE", IOIPageSettings.LeftMargin + 370, IOILines.Line13 + 21, BCSmallFont, False, False)
+                objInstItemBC(5) = New CInstrumentItem("BANKERS CHEQUE", IOIPageSettings.LeftMargin + 320, IOILines.Line3 + 2, BCFontLargeboldcourier, False, False)
+
+
+		'start of IR 19070031
+                'Dim amtround As String = Convert.ToInt64(amt)
+                Dim amtround As String = amt
+		'End of IR 19070031
+                Dim lmargin As Int16 = 480
+                Dim amtlength As Int16 = amtround.Length
+                Dim amtsplit As String = amnt.Split(".")(0)
+                Dim firstamt As String = "(" + amtround.Substring(0, 1) + "/" + amtsplit.Length.ToString + ")"
+
+                If (amtround.Length > 0) Then
+                    While (amtlength >= 0)
+                        lmargin = lmargin + 15
+                        amtlength = amtlength - 1
+                    End While
+                End If
+
+                Dim amntstrng As String = ParseNumber2Words(amnt)
+                Dim amntstrngArray() As String = SplitAmtString(amntstrng)
+
+                If amntstrngArray(1).Length = 0 Then
+                    amntstrngArray(0) = amntstrngArray(0) + "Only"
+                Else
+                    amntstrngArray(1) = amntstrngArray(1) + "Only"
+                End If
+                objInstItemBC(10) = New CInstrumentItem("PAY", IOIPageSettings.LeftMargin + 60, IOILines.Line5 - 8, BCFontLcourier, False, False)
+                objInstItemBC(14) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 100, IOILines.Line5 - 8, BCFontLcourier, False, False)
+                objInstItemBC(12) = New CInstrumentItem(CNST_OR_ORDERBC, IOIPageSettings.LeftMargin + 640, IOILines.Line5 - 11, BCHindiFontL, False, False)
+                objInstItemBC(36) = New CInstrumentItem("OR ORDER", IOIPageSettings.LeftMargin + 680, IOILines.Line6 - 10, BCFontLcourier1, False, False)
+                objInstItemBC(11) = New CInstrumentItem(namestrngArray(0), IOIPageSettings.LeftMargin + 110, IOILines.Line5 - 11, DDFontcourier2, False, False)
+                If Not namestrngArray(1) Is Nothing Then
+                    objInstItemBC(14) = New CInstrumentItem(namestrngArray(1), IOIPageSettings.LeftMargin + 150, IOILines.Line6 - 10, DDFontcourier2, False, False)
+                End If
+
+                objInstItemBC(15) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 70, IOILines.Line7 + 15, BCSmallFont, False, False, 43, 20, 1, 1, True)
+                objInstItemBC(16) = New CInstrumentItem(amntstrngArray(0), IOIPageSettings.LeftMargin + 140, IOILines.Line6 + 3, DDFontcourier2, False, False)
+                If amntstrngArray(1).Length <> 0 Then
+                    objInstItemBC(15) = New CInstrumentItem(amntstrngArray(1), IOIPageSettings.LeftMargin + 45, IOILines.Line7 + 15, DDFontcourier2, False, False)
+                End If
+                objInstItemBC(17) = New CInstrumentItem(amnt.Split(".")(0) + "." + strPaiseDigits, IOIPageSettings.LeftMargin + 620, IOILines.Line7 + 10, DDFontcourier2, False, False)
+                objInstItemBC(18) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 140, IOILines.Line6, DDFontcourier2, False, False)
+
+                objInstItemBC(19) = New CInstrumentItem("", IOIPageSettings.LeftMargin + lmargin + 10, IOILines.Line7 + 8, BCDigitcourier, True, True, 15, 15, 1, 1, False)
+
+
+                objInstItemBC(20) = New CInstrumentItem("", IOIPageSettings.LeftMargin, IOILines.Line7, BCHindiFontL, False, False)
+
+                objInstItemBC(21) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 480, IOILines.Line9 + 6, BCHindiFontL, False, False)
+		'Start of IR 19070031
+		'objInstItemBC(22) = New CInstrumentItem("AMOUNT BELOW " + (CType(amnt.Split(".")(0), Int32) + 1).ToString + firstamt, IOIPageSettings.LeftMargin + 380, IOILines.Line10, BCFontcourier, False, False)		
+                objInstItemBC(22) = New CInstrumentItem("AMOUNT BELOW " + (CType(amnt.Split(".")(0), Int64) + 1).ToString + firstamt, IOIPageSettings.LeftMargin + 380, IOILines.Line10, BCFontcourier, False, False)
+		'End of IR 19070031
+                objInstItemBC(25) = New CInstrumentItem(" ", IOIPageSettings.LeftMargin + lmargin - 400, IOILines.Line10 + 3, BCFontcourier, False, False)
+                objInstItemBC(26) = New CInstrumentItem(CNST_For + " " + m_BankNameHindi, IOIPageSettings.LeftMargin + 620, IOILines.Line10 - 9, BCSmallHindiFont, False, False)
+                objInstItemBC(27) = New CInstrumentItem("For " + m_BankName, IOIPageSettings.LeftMargin + 620, IOILines.Line10 + 5, BCSmallFont, False, False)
+
+
+                objInstItemBC(23) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 458, IOILines.Line7 + 8, BCHindiFont, False, False)
+                objInstItemBC(32) = New CInstrumentItem("", IOIPageSettings.LeftMargin + lmargin - 20, IOILines.Line7 + 8, BCHindiFont, False, False)
+                objInstItemBC(33) = New CInstrumentItem("/CODE No: " + ibr, IOIPageSettings.LeftMargin + 40, IOILines.Line3 + 4, BCFontcourier, False, False)
+                objInstItemBC(30) = New CInstrumentItem(CNST_CodeNo, IOIPageSettings.LeftMargin + 5, IOILines.Line3 + 3, BCHindiFont, False, False)
+                objInstItemBC(29) = New CInstrumentItem("Tel No. " + itele, IOIPageSettings.LeftMargin + 5, IOILines.Line3 + 16, BCFontcourier, False, False)
+                objInstItemBC(28) = New CInstrumentItem("Key: " + code, IOIPageSettings.LeftMargin + 170, IOILines.Line10, BCFontcourier, False, False)
+                objInstItemBC(24) = New CInstrumentItem("Sr. No: " + srl, IOIPageSettings.LeftMargin + 250, IOILines.Line10, BCFontcourier, False, False)
+                objInstItemBC(31) = New CInstrumentItem(dftnum1, IOIPageSettings.LeftMargin + 30, IOILines.Line10, BCFontcourier, False, False)
+
+                objInstItemBC(0) = New CInstrumentItem("Issuing Branch:" + ibrnm, IOIPageSettings.LeftMargin + 5, IOILines.Line2 + 1, BCFontcourier, False, False)
+
+                objInstItemBC(2) = New CInstrumentItem(CNST_IssuingBranch, IOIPageSettings.LeftMargin + 5, IOILines.Line1 - 2, BCHindiFont, False, False)
+
+                objInstItemBC(34) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 85, IOILines.Line4 + 10, BCFontcourier, False, False)
+                objInstItemBC(35) = New CInstrumentItem("", IOIPageSettings.LeftMargin, IOILines.Line5 + 6, BCFontcourier, False, False)
+                objInstItemBC(37) = New CInstrumentItem("Key: " + code, IOIPageSettings.LeftMargin + 520, IOILines.Line1 - 3, BCFontcourier, False, False)
+                objInstItemBC(38) = New CInstrumentItem("Sr. No: " + srl, IOIPageSettings.LeftMargin + 520, IOILines.Line2 + 3, BCFontcourier, False, False)
+
+                'Start of IR 261376
+                objInstItemBC(39) = New CInstrumentItem("Name of Applicant", IOIPageSettings.LeftMargin + 30, IOILines.Line11 + 3, DDFontcourier2, False, False)
+                objInstItemBC(40) = New CInstrumentItem(appname, IOIPageSettings.LeftMargin + 165, IOILines.Line11 + 3, DDFontcourier2, False, False)
+                'End of IR 261376
+                
+                'start of Ir 21070064
+                
+                If Convert.ToDouble(amnt) >= chckamnt Then
+
+                    objInstItemBC(41) = New CInstrumentItem(test, IOIPageSettings.LeftMargin + 180, IOILines.Line3 - 2, BCFontLargebold, False, False)
+                    
+                Else
+
+                    objInstItemBC(41) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 180, IOILines.Line3 - 2, BCFontLargebold, False, False)
+                   
+                End If
+                'end of Ir 21070064
+                objInstrument.PrintInstrument(objInstItemBC)
+
+            End If
+
+            If InstType = "1" And isduplicate = "Y" Then
+
+
+                Dim lname As String = ""
+
+                If ((pname + lname).Length) <= pNameMaxLength Then
+                    pname = pname + lname
+                    lname = ""
+                End If
+                Dim objInstrument As New CInstrument(CInstrument.IntrumentTypes.BC, 900, 500, qnm)
+                Dim objInstItemBC As CInstrumentItem()
+                'Start of IR 261376
+                'ReDim objInstItemBC(39)
+                'start of Ir 21070064
+                'ReDim objInstItemBC(41)
+                ReDim objInstItemBC(42)
+                'end of Ir 21070064
+                'End of IR 261376
+                Dim namestrngArray(2) As String
+
+                If pnameioibc.Length > 60 Then
+                    namestrngArray(0) = pnameioibc.Substring(0, 60)
+                    namestrngArray(1) = pnameioibc.Substring(60)
+                Else
+                    namestrngArray(0) = pnameioibc
+                End If
+                pnamelengthioi = namestrngArray(0).Length
+
+                If (pnamelengthioi > 0) Then
+                    While (pnamelengthioi < 60)
+                        namestrngArray(0) = namestrngArray(0).PadRight(namestrngArray(0).Length + 1, "*"c)
+                        pnamelengthioi = pnamelengthioi + 1
+                    End While
+                End If
+
+                If Not namestrngArray(1) Is Nothing Then
+                    pnamelengthioi = namestrngArray(1).Length
+
+                    If (pnamelengthioi > 0) Then
+                        While (pnamelengthioi < 60)
+                            namestrngArray(1) = namestrngArray(1).PadRight(namestrngArray(1).Length + 1, "*"c)
+                            pnamelengthioi = pnamelengthioi + 1
+                        End While
+                    End If
+                End If
+                Dim BCFontLargecourier As New Font(CNST_EnglishFontNamecourier, 16, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontLargeboldcourier As New Font(CNST_EnglishFontNamecourier, 16, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim BCSmallFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontLcourier As New Font(CNST_EnglishFontNamecourier, 12, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCTitleFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim BCDigitcourier As New Font(CNST_EnglishFontNamecourier, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontLcourier1 As New Font(CNST_EnglishFontNamecourier, 14, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontcourier3 As New Font(CNST_EnglishFontNamecourier, 15, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontcourier2 As New Font(CNST_EnglishFontNamecourier, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+
+                Dim BCFontLarge As New Font(CNST_EnglishFontName, 17, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontLarge18 As New Font(CNST_EnglishFontName, 18, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFontLargebold As New Font(CNST_EnglishFontName, 18, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim BCSmallFont As New Font(CNST_EnglishFontName, 11, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCFont As New Font(CNST_EnglishFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCTitleFont As New Font(CNST_EnglishFontName, 15, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim BCDigit As New Font(CNST_EnglishFontName, 15, FontStyle.Regular, GraphicsUnit.Pixel)
+
+                Dim BCHindiFontLarge As New Font(CNST_HindiFontName, 19, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim BCSmallHindiFont As New Font(CNST_HindiFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCHindiFont As New Font(CNST_HindiFontName, 14, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCHindiFontL As New Font(CNST_HindiFontName, 16, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim BCTitleHindiFont As New Font(CNST_HindiFontName, 15, FontStyle.Regular, GraphicsUnit.Pixel)
+
+                objInstItemBC(1) = New CInstrumentItem(CNST_BankersCheque, IOIPageSettings.LeftMargin + 365, IOILines.Line2 - 10, BCHindiFontLarge, False, False)
+                objInstItemBC(6) = New CInstrumentItem("" + issuedate.Replace("/", ""), IOIPageSettings.LeftMargin + 610, IOILines.Line1, BCFontcourier3, True, True, 20, 18, 1, 1, False)
+                objInstItemBC(13) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 540, IOILines.Line1, BCFontcourier, False, False)
+                objInstItemBC(7) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 505, IOILines.Line1 - 3, BCHindiFont, False, False)
+                objInstItemBC(8) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 510, IOILines.Line2 + 8, BCFontcourier, False, False)
+                objInstItemBC(9) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 510, IOILines.Line4 - 8, BCFontcourier, False, False)
+                objInstItemBC(3) = New CInstrumentItem(CNST_NOT_TRANSFERABLE, IOIPageSettings.LeftMargin + 300, IOILines.Line13 + 20, BCSmallHindiFont, False, False)
+                objInstItemBC(4) = New CInstrumentItem("/ NOT TRANSFERABLE", IOIPageSettings.LeftMargin + 370, IOILines.Line13 + 21, BCSmallFont, False, False)
+                objInstItemBC(5) = New CInstrumentItem("BANKERS CHEQUE", IOIPageSettings.LeftMargin + 320, IOILines.Line3 + 2, BCFontLargeboldcourier, False, False)
+                'Start of IR 261376
+                'objInstItemBC(37) = New CInstrumentItem("CARE:DUPLICATE", IOIPageSettings.LeftMargin + 310, IOILines.Line11 + 4, BCFontLargecourier, False, False)
+                objInstItemBC(37) = New CInstrumentItem("CARE:DUPLICATE", IOIPageSettings.LeftMargin + 310, IOILines.Line12 + 2, BCFontLargecourier, False, False)
+                'End of IR 261376
+
+
+		'start of IR 19070031
+                'Dim amtround As String = Convert.ToInt64(amt)
+                Dim amtround As String = amt
+		'End of IR 19070031
+                Dim lmargin As Int16 = 480
+                Dim amtlength As Int16 = amtround.Length
+                Dim amtsplit As String = amnt.Split(".")(0)
+                Dim firstamt As String = "(" + amtround.Substring(0, 1) + "/" + amtsplit.Length.ToString + ")"
+                If (amtround.Length > 0) Then
+                    While (amtlength >= 0)
+                        lmargin = lmargin + 15
+                        amtlength = amtlength - 1
+                    End While
+                End If
+
+                Dim amntstrng As String = ParseNumber2Words(amnt)
+                Dim amntstrngArray() As String = SplitAmtString(amntstrng)
+
+                If amntstrngArray(1).Length = 0 Then
+                    amntstrngArray(0) = amntstrngArray(0) + "Only"
+                Else
+                    amntstrngArray(1) = amntstrngArray(1) + "Only"
+                End If
+
+
+                objInstItemBC(10) = New CInstrumentItem("PAY", IOIPageSettings.LeftMargin + 60, IOILines.Line5 - 8, BCFontLcourier, False, False)
+                objInstItemBC(14) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 100, IOILines.Line5 - 8, BCFontLarge18, False, False)
+                objInstItemBC(12) = New CInstrumentItem(CNST_OR_ORDERBC, IOIPageSettings.LeftMargin + 640, IOILines.Line5 - 11, BCHindiFontL, False, False)
+                objInstItemBC(36) = New CInstrumentItem("OR ORDER", IOIPageSettings.LeftMargin + 680, IOILines.Line6 - 10, BCFontLcourier1, False, False)
+                objInstItemBC(11) = New CInstrumentItem(namestrngArray(0), IOIPageSettings.LeftMargin + 110, IOILines.Line5 - 11, BCFontLcourier, False, False)
+                If Not namestrngArray(1) Is Nothing Then
+                    objInstItemBC(14) = New CInstrumentItem(namestrngArray(1), IOIPageSettings.LeftMargin + 150, IOILines.Line6 - 10, BCFontLcourier, False, False)
+                End If
+
+                objInstItemBC(15) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 70, IOILines.Line7 + 15, BCSmallFont, False, False, 43, 20, 1, 1, True)
+                objInstItemBC(16) = New CInstrumentItem(amntstrngArray(0), IOIPageSettings.LeftMargin + 140, IOILines.Line6 + 3, DDFontcourier2, False, False)
+                If amntstrngArray(1).Length <> 0 Then
+                    objInstItemBC(15) = New CInstrumentItem(amntstrngArray(1), IOIPageSettings.LeftMargin + 45, IOILines.Line7 + 15, DDFontcourier2, False, False)
+                End If
+                objInstItemBC(17) = New CInstrumentItem(amnt.Split(".")(0) + "." + strPaiseDigits, IOIPageSettings.LeftMargin + 620, IOILines.Line7 + 10, DDFontcourier2, False, False)
+                objInstItemBC(18) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 140, IOILines.Line6, DDFontcourier2, False, False)
+
+                objInstItemBC(19) = New CInstrumentItem("DDMMYYYY", IOIPageSettings.LeftMargin + 610, IOILines.Line1 + 20, BCFontcourier, True, False, 20, 18, 1, 1, False, True)
+
+
+                objInstItemBC(20) = New CInstrumentItem("", IOIPageSettings.LeftMargin, IOILines.Line7, BCHindiFontL, False, False)
+
+                objInstItemBC(21) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 480, IOILines.Line9 + 6, BCHindiFontL, False, False)
+		'start of IR 19070031
+                'objInstItemBC(22) = New CInstrumentItem("AMOUNT BELOW " + (CType(amnt.Split(".")(0), Int32) + 1).ToString + firstamt, IOIPageSettings.LeftMargin + 380, IOILines.Line10, BCFontcourier, False, False)
+		objInstItemBC(22) = New CInstrumentItem("AMOUNT BELOW " + (CType(amnt.Split(".")(0), Int64) + 1).ToString + firstamt, IOIPageSettings.LeftMargin + 380, IOILines.Line10, BCFontcourier, False, False)
+		'End of IR 19070031
+                objInstItemBC(25) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 590, IOILines.Line1 + 20, BCFontcourier, True, False, 15, 18, 1, 1, False, True)
+                objInstItemBC(26) = New CInstrumentItem(CNST_For + " " + m_BankNameHindi, IOIPageSettings.LeftMargin + 620, IOILines.Line10 - 10, BCSmallHindiFont, False, False)
+
+                objInstItemBC(27) = New CInstrumentItem("For " + m_BankName, IOIPageSettings.LeftMargin + 620, IOILines.Line10 + 4, BCSmallFont, False, False)
+
+
+
+                objInstItemBC(23) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 458, IOILines.Line7 + 8, BCHindiFont, False, False)
+                objInstItemBC(32) = New CInstrumentItem("", IOIPageSettings.LeftMargin + lmargin - 20, IOILines.Line7 + 8, BCHindiFont, False, False)
+                objInstItemBC(33) = New CInstrumentItem("/CODE No: " + ibr, IOIPageSettings.LeftMargin + 40, IOILines.Line3 + 3, BCFontcourier, False, False)
+                objInstItemBC(30) = New CInstrumentItem(CNST_CodeNo, IOIPageSettings.LeftMargin + 5, IOILines.Line3 + 4, BCHindiFont, False, False)
+                objInstItemBC(29) = New CInstrumentItem("Tel No. " + itele, IOIPageSettings.LeftMargin + 5, IOILines.Line3 + 16, BCFontcourier, False, False)
+                objInstItemBC(28) = New CInstrumentItem("Key: " + code, IOIPageSettings.LeftMargin + 170, IOILines.Line10, BCFontcourier, False, False)
+                objInstItemBC(24) = New CInstrumentItem("Sr. No: " + srl, IOIPageSettings.LeftMargin + 250, IOILines.Line10, BCFontcourier, False, False)
+                objInstItemBC(31) = New CInstrumentItem(dftnum1, IOIPageSettings.LeftMargin + 30, IOILines.Line10, BCFontcourier, False, False)
+
+                objInstItemBC(0) = New CInstrumentItem("Issuing Branch:" + ibrnm, IOIPageSettings.LeftMargin + 5, IOILines.Line2 + 1, BCFontcourier, False, False)
+
+                objInstItemBC(2) = New CInstrumentItem(CNST_IssuingBranch, IOIPageSettings.LeftMargin + 5, IOILines.Line1 - 2, BCHindiFont, False, False)
+
+                objInstItemBC(34) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 85, IOILines.Line4 + 10, BCFontcourier, False, False)
+                objInstItemBC(35) = New CInstrumentItem("", IOIPageSettings.LeftMargin, IOILines.Line5 + 6, BCFontcourier, False, False)
+                objInstItemBC(38) = New CInstrumentItem("Key: " + code, IOIPageSettings.LeftMargin + 520, IOILines.Line1 - 3, BCFontcourier, False, False)
+                objInstItemBC(39) = New CInstrumentItem("Sr. No: " + srl, IOIPageSettings.LeftMargin + 520, IOILines.Line2 + 3, BCFontcourier, False, False)
+
+                'Start of IR 261376
+                objInstItemBC(40) = New CInstrumentItem("Name of Applicant", IOIPageSettings.LeftMargin + 30, IOILines.Line11 + 3, DDFontcourier2, False, False)
+                objInstItemBC(41) = New CInstrumentItem(appname, IOIPageSettings.LeftMargin + 165, IOILines.Line11 + 3, DDFontcourier2, False, False)
+                'End of IR 261376
+
+                'start of Ir 21070064
+                If Convert.ToDouble(amnt) >= chckamnt Then
+
+                    objInstItemBC(42) = New CInstrumentItem(test, IOIPageSettings.LeftMargin + 180, IOILines.Line3 - 2, BCFontLargebold, False, False)
+                Else
+
+                    objInstItemBC(42) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 180, IOILines.Line3 - 2, BCFontLargebold, False, False)
+                End If
+                'end of Ir 21070064
+                objInstrument.PrintInstrument(objInstItemBC)
+            End If
+
+            If InstType = "2" And isduplicate = "N" Then
+
+                Dim lname As String = ""
+
+                If ((pname + lname).Length) <= pNameMaxLength Then
+                    pname = pname + lname
+                    lname = ""
+                End If
+                Dim namestrngArray(2) As String
+
+                If pnameioidd.Length > 60 Then
+                    namestrngArray(0) = pnameioidd.Substring(0, 60)
+                    namestrngArray(1) = pnameioidd.Substring(60)
+                Else
+                    namestrngArray(0) = pnameioidd
+                End If
+                pnamelength = namestrngArray(0).Length
+                If (pnamelength > 0) Then
+                    While (pnamelength < 60)
+                        namestrngArray(0) = namestrngArray(0).PadRight(namestrngArray(0).Length + 1, "*"c)
+                        pnamelength = pnamelength + 1
+                    End While
+                End If
+                If Not namestrngArray(1) Is Nothing Then
+                    pnamelength = namestrngArray(1).Length
+
+                    If (pnamelength > 0) Then
+                        While (pnamelength < 60)
+                            namestrngArray(1) = namestrngArray(1).PadRight(namestrngArray(1).Length + 1, "*"c)
+                            pnamelength = pnamelength + 1
+                        End While
+                    End If
+                End If
+                Dim objInstrument As New CInstrument(CInstrument.IntrumentTypes.DD, 900, 500, qnm)
+                Dim objInstrumentItems As CInstrumentItem()
+                'Start of IR 261376
+                'ReDim objInstrumentItems(44)
+                'start of Ir 21070064
+                'ReDim objInstrumentItems(46)
+                ReDim objInstrumentItems(47)
+                'end of Ir 21070064
+                'End of IR 261376
+
+
+                Dim DDLargeFontBoldcourier As New Font(CNST_EnglishFontNamecourier, 16, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim DDLargeFontcourier As New Font(CNST_EnglishFontNamecourier, 16, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDSmallFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontLcourier As New Font(CNST_EnglishFontNamecourier, 12, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontcourier2 As New Font(CNST_EnglishFontNamecourier, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontcourier3 As New Font(CNST_EnglishFontNamecourier, 15, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDTitleFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim DDDigitcourier As New Font(CNST_EnglishFontNamecourier, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDLargeFontBold As New Font(CNST_EnglishFontName, 18, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim DDLargeFont As New Font(CNST_EnglishFontName, 18, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDSmallFont As New Font(CNST_EnglishFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontL As New Font(CNST_EnglishFontName, 14, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFont As New Font(CNST_EnglishFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDTitleFont As New Font(CNST_EnglishFontName, 15, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim DDDigit As New Font(CNST_EnglishFontName, 15, FontStyle.Regular, GraphicsUnit.Pixel)
+
+                Dim DDLargeHindiFont As New Font(CNST_EnglishFontName, 18, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim DDSmallHindiFont As New Font(CNST_HindiFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDHindiFont As New Font(CNST_HindiFontName, 14, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDHindiFontL As New Font(CNST_HindiFontName, 16, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDTitleHindiFont As New Font(CNST_HindiFontName, 15, FontStyle.Bold, GraphicsUnit.Pixel)
+
+
+                objInstrumentItems(0) = New CInstrumentItem(CNST_IssuingBranch, IOIPageSettings.LeftMargin + 5, IOILines.Line1 - 2, DDHindiFont, False, False)
+                objInstrumentItems(1) = New CInstrumentItem("DEMAND DRAFT", IOIPageSettings.LeftMargin + 320, IOILines.Line3 + 2, DDLargeFontBoldcourier, False, False)
+                objInstrumentItems(2) = New CInstrumentItem("" + TempHostDate.Replace("/", ""), IOIPageSettings.LeftMargin + 610, IOILines.Line1, DDFontcourier3, True, True, 20, 18, 1, 1, False)
+                objInstrumentItems(13) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 540, IOILines.Line1, DDFontcourier, False, False)
+                objInstrumentItems(3) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 505, IOILines.Line1 - 1, DDHindiFont, False, False)
+
+                objInstrumentItems(4) = New CInstrumentItem("Issuing Branch:" + ibrnm, IOIPageSettings.LeftMargin + 5, IOILines.Line2 + 1, DDFontcourier, False, False)
+                objInstrumentItems(5) = New CInstrumentItem("/CODE No: " + ibr, IOIPageSettings.LeftMargin + 40, IOILines.Line3 + 4, DDFontcourier, False, False)
+                objInstrumentItems(33) = New CInstrumentItem(CNST_CodeNo, IOIPageSettings.LeftMargin + 5, IOILines.Line3 + 3, DDHindiFont, False, False)
+
+                objInstrumentItems(6) = New CInstrumentItem("Tel No. " + itele, IOIPageSettings.LeftMargin + 5, IOILines.Line3 + 16, DDFontcourier, False, False)
+                objInstrumentItems(7) = New CInstrumentItem("DDMMYYYY", IOIPageSettings.LeftMargin + 610, IOILines.Line1 + 20, DDFontcourier, True, False, 20, 18, 1, 1, False, True)
+                objInstrumentItems(8) = New CInstrumentItem("" + "", IOIPageSettings.LeftMargin + 505, IOILines.Line3 + 14, DDFontcourier, False, False)
+                objInstrumentItems(34) = New CInstrumentItem(" ON DEMAND PAY ", IOIPageSettings.LeftMargin + 40, IOILines.Line6 - 10, DDFontLcourier, False, False)
+                objInstrumentItems(14) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 115, IOILines.Line5 - 5, DDLargeFont, False, False)
+                objInstrumentItems(9) = New CInstrumentItem(namestrngArray(0), IOIPageSettings.LeftMargin + 110, IOILines.Line5 - 11, DDFontLcourier, False, False)
+                If Not namestrngArray(1) Is Nothing Then
+                    objInstrumentItems(14) = New CInstrumentItem(namestrngArray(1), IOIPageSettings.LeftMargin + 150, IOILines.Line6 - 10, DDFontLcourier, False, False)
+                End If
+
+
+                objInstrumentItems(10) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 65, IOILines.Line5 + 9, DDLargeFont, False, False)
+                objInstrumentItems(11) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 520, IOILines.Line6 - 4, DDHindiFontL, False, False)
+                objInstrumentItems(12) = New CInstrumentItem(CNST_OnDemandPay, IOIPageSettings.LeftMargin + 45, IOILines.Line5 - 11, DDHindiFontL, False, False)
+		'start of IR 19070031
+                'Dim amtround As String = Convert.ToInt64(amt)
+                Dim amtround As String = amt
+		'End of IR 19070031
+                Dim amtsplit As String = amnt.Split(".")(0)
+                Dim amntstrng As String = ParseNumber2Words(amnt)
+                Dim amntstrngArray() As String = SplitAmtString(amntstrng)
+
+                If amntstrngArray(1).Length = 0 Then
+                    amntstrngArray(0) = amntstrngArray(0) + "Only"
+                Else
+                    amntstrngArray(1) = amntstrngArray(1) + "Only"
+                End If
+
+                Dim lmargin As Int16 = 460
+                Dim firstamt As String = "(" + amtround.Substring(0, 1) + "/" + amtsplit.Length.ToString + ")"
+                Dim amtlength As Int16 = amtround.Length
+                If (amtround.Length > 0) Then
+                    While (amtlength >= 0)
+                        lmargin = lmargin + 15
+                        amtlength = amtlength - 1
+                    End While
+                End If
+                objInstrumentItems(15) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 70, IOILines.Line7 + 15, DDSmallFont, False, False, 43, 20, 1, 1, True)
+                objInstrumentItems(16) = New CInstrumentItem(amntstrngArray(0), IOIPageSettings.LeftMargin + 140, IOILines.Line6 + 3, DDFontcourier2, False, False)
+                If amntstrngArray(1).Length <> 0 Then
+                    objInstrumentItems(15) = New CInstrumentItem(amntstrngArray(1), IOIPageSettings.LeftMargin + 45, IOILines.Line7 + 15, DDFontcourier2, False, False)
+                End If
+                objInstrumentItems(39) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 458, IOILines.Line7 + 10, DDHindiFontL, False, False)
+                objInstrumentItems(17) = New CInstrumentItem(amnt.Split(".")(0) + "." + strPaiseDigits, IOIPageSettings.LeftMargin + 620, IOILines.Line7 + 10, DDFontcourier2, False, False)
+                objInstrumentItems(18) = New CInstrumentItem("", IOIPageSettings.LeftMargin + lmargin + 10, IOILines.Line7 + 10, DDFontcourier, False, False)
+                objInstrumentItems(38) = New CInstrumentItem("", IOIPageSettings.LeftMargin + lmargin, IOILines.Line7 + 10, DDHindiFontL, False, False)
+                objInstrumentItems(19) = New CInstrumentItem("", IOIPageSettings.LeftMargin + lmargin + 30, IOILines.Line7 + 10, DDDigitcourier, False, False, 15, 15, 1, 1, False)
+                objInstrumentItems(20) = New CInstrumentItem("", IOIPageSettings.LeftMargin, IOILines.Line7 + 6, DDHindiFontL, False, False)
+
+
+                objInstrumentItems(21) = New CInstrumentItem("AMOUNT BELOW " + (CType(amnt.Split(".")(0), Int32) + 1).ToString + firstamt, IOIPageSettings.LeftMargin + 380, IOILines.Line10, DDFontcourier, False, False)
+                objInstrumentItems(22) = New CInstrumentItem("/ VALUE RECEIVED", IOIPageSettings.LeftMargin + 630, IOILines.Line10, DDFontcourier, False, False)
+                objInstrumentItems(23) = New CInstrumentItem(CNST_VALUE_RECEIVED, IOIPageSettings.LeftMargin + 580, IOILines.Line10 - 1, DDHindiFont, False, False)
+
+                objInstrumentItems(24) = New CInstrumentItem(CNST_OR_ORDER, IOIPageSettings.LeftMargin + 670, IOILines.Line5 - 11, DDHindiFontL, False, False)
+                objInstrumentItems(25) = New CInstrumentItem("OR ORDER", IOIPageSettings.LeftMargin + 695, IOILines.Line6 - 10, DDFontLcourier, False, False)
+
+
+
+                objInstrumentItems(26) = New CInstrumentItem(m_BankNameHindiDrawee, IOIPageSettings.LeftMargin + 250, IOILines.Line12 + 20, DDHindiFontL, False, False)
+
+
+
+                objInstrumentItems(27) = New CInstrumentItem(m_BankNameDrawee, IOIPageSettings.LeftMargin + 250, IOILines.Line13 + 21, DDTitleFontcourier, False, False)
+
+                objInstrumentItems(28) = New CInstrumentItem("/ DRAWEE BRANCH:" + dbrnm.Trim(), IOIPageSettings.LeftMargin + 320, IOILines.Line14 + 14, DDFontcourier, False, False)
+
+                objInstrumentItems(29) = New CInstrumentItem(CNST_DRAWEE_BRANCH, IOIPageSettings.LeftMargin + 250, IOILines.Line14 + 13, DDHindiFont, False, False)
+
+
+                objInstrumentItems(31) = New CInstrumentItem(CNST_CodeNo, IOIPageSettings.LeftMargin + 250, IOILines.Line14 + 25, DDHindiFont, False, False)
+
+                objInstrumentItems(30) = New CInstrumentItem("/CODE No: " + dbr.Trim(), IOIPageSettings.LeftMargin + 290, IOILines.Line14 + 26, DDFontcourier, False, False)
+                'Start of IR 261345
+                'objInstrumentItems(35) = New CInstrumentItem("Key: " + code, IOIPageSettings.LeftMargin + 140, IOILines.Line10, DDFontcourier, False, False)
+                objInstrumentItems(35) = New CInstrumentItem("Key: " + code, IOIPageSettings.LeftMargin + 165, IOILines.Line10, DDFontcourier, False, False)
+                'End of IR 261345
+                objInstrumentItems(32) = New CInstrumentItem("Sr. No: " + srl, IOIPageSettings.LeftMargin + 250, IOILines.Line10, DDFontcourier, False, False)
+                objInstrumentItems(36) = New CInstrumentItem(CNST_DemandDraft, IOIPageSettings.LeftMargin + 365, IOILines.Line2 - 10, DDLargeHindiFont, False, False)
+                objInstrumentItems(37) = New CInstrumentItem(dftnum1, IOIPageSettings.LeftMargin + 30, IOILines.Line10, DDFontcourier, False, False)
+
+                objInstrumentItems(40) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 175, IOILines.Line5 + 3, DDFontcourier, False, False)
+                objInstrumentItems(41) = New CInstrumentItem("", IOIPageSettings.LeftMargin, IOILines.Line6, DDFontcourier, False, False)
+                objInstrumentItems(42) = New CInstrumentItem("", IOIPageSettings.LeftMargin, IOILines.Line6, DDFontcourier, False, False)
+                objInstrumentItems(43) = New CInstrumentItem("Key: " + code, IOIPageSettings.LeftMargin + 520, IOILines.Line1 - 3, DDFontcourier, False, False)
+                objInstrumentItems(44) = New CInstrumentItem("Sr. No: " + srl, IOIPageSettings.LeftMargin + 520, IOILines.Line2 + 3, DDFontcourier, False, False)
+                'Start of IR 261376
+                objInstrumentItems(45) = New CInstrumentItem("Name of Applicant", IOIPageSettings.LeftMargin + 30, IOILines.Line11 + 3, DDFontcourier2, False, False)
+                objInstrumentItems(46) = New CInstrumentItem(appname, IOIPageSettings.LeftMargin + 165, IOILines.Line11 + 3, DDFontcourier2, False, False)
+                'End of IR 261376
+
+                'start of Ir 21070064
+               
+                If Convert.ToDouble(amnt) >= chckamnt Then
+
+                    objInstrumentItems(47) = New CInstrumentItem(test, IOIPageSettings.LeftMargin + 180, IOILines.Line3 - 2, DDLargeFontBoldcourier, False, False)
+                Else
+
+                    objInstrumentItems(47) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 180, IOILines.Line3 - 2, DDLargeFontBoldcourier, False, False)
+                End If
+                'end of Ir 21070064
+                objInstrument.PrintInstrument(objInstrumentItems)
+
+            End If
+            If InstType = "2" And isduplicate = "Y" Then
+
+                Dim lname As String = ""
+
+                If ((pname + lname).Length) <= pNameMaxLength Then
+                    pname = pname + lname
+                    lname = ""
+                End If
+                Dim namestrngArray(2) As String
+                If pnameioidd.Length > 60 Then
+                    namestrngArray(0) = pnameioidd.Substring(0, 60)
+                    namestrngArray(1) = pnameioidd.Substring(60)
+                Else
+                    namestrngArray(0) = pnameioidd
+                End If
+                pnamelength = namestrngArray(0).Length
+                If (pnamelength > 0) Then
+                    While (pnamelength < 60)
+                        namestrngArray(0) = namestrngArray(0).PadRight(namestrngArray(0).Length + 1, "*"c)
+                        pnamelength = pnamelength + 1
+                    End While
+                End If
+                If Not namestrngArray(1) Is Nothing Then
+                    pnamelength = namestrngArray(1).Length
+
+                    If (pnamelength > 0) Then
+                        While (pnamelength < 60)
+                            namestrngArray(1) = namestrngArray(1).PadRight(namestrngArray(1).Length + 1, "*"c)
+                            pnamelength = pnamelength + 1
+                        End While
+                    End If
+                End If
+
+                Dim objInstrument As New CInstrument(CInstrument.IntrumentTypes.DD, 900, 500, qnm)
+                Dim objInstrumentItems As CInstrumentItem()
+                'Start of IR 261376
+                'ReDim objInstrumentItems(45)
+                'start of Ir 21070064
+                'ReDim objInstrumentItems(47)
+                ReDim objInstrumentItems(48)
+                'end of Ir 21070064
+                'End of IR 261376
+
+                Dim DDLargeFontBoldcourier As New Font(CNST_EnglishFontNamecourier, 16, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim DDLargeFontcourier As New Font(CNST_EnglishFontNamecourier, 16, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDSmallFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontLcourier As New Font(CNST_EnglishFontNamecourier, 12, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDTitleFontcourier As New Font(CNST_EnglishFontNamecourier, 11, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim DDDigitcourier As New Font(CNST_EnglishFontNamecourier, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+
+                Dim DDFontcourier2 As New Font(CNST_EnglishFontNamecourier, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontcourier3 As New Font(CNST_EnglishFontNamecourier, 15, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDLargeFontBold As New Font(CNST_EnglishFontName, 18, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim DDLargeFont As New Font(CNST_EnglishFontName, 18, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDSmallFont As New Font(CNST_EnglishFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFontL As New Font(CNST_EnglishFontName, 14, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDFont As New Font(CNST_EnglishFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDTitleFont As New Font(CNST_EnglishFontName, 15, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim DDDigit As New Font(CNST_EnglishFontName, 15, FontStyle.Regular, GraphicsUnit.Pixel)
+
+                Dim DDLargeHindiFont As New Font(CNST_EnglishFontName, 18, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim DDSmallHindiFont As New Font(CNST_HindiFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDHindiFont As New Font(CNST_HindiFontName, 14, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDHindiFontL As New Font(CNST_HindiFontName, 16, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim DDTitleHindiFont As New Font(CNST_HindiFontName, 15, FontStyle.Bold, GraphicsUnit.Pixel)
+
+
+                objInstrumentItems(0) = New CInstrumentItem(CNST_IssuingBranch, IOIPageSettings.LeftMargin + 5, IOILines.Line1 - 2, DDHindiFont, False, False)
+                objInstrumentItems(1) = New CInstrumentItem("DEMAND DRAFT", IOIPageSettings.LeftMargin + 320, IOILines.Line3 + 2, DDLargeFontBoldcourier, False, False)
+                objInstrumentItems(2) = New CInstrumentItem("" + issuedate.Replace("/", ""), IOIPageSettings.LeftMargin + 610, IOILines.Line1, DDFontcourier3, True, True, 20, 18, 1, 1, False)
+                objInstrumentItems(13) = New CInstrumentItem(" ", IOIPageSettings.LeftMargin + 540, IOILines.Line1, DDFontcourier, False, False)
+                objInstrumentItems(3) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 505, IOILines.Line1 - 3, DDHindiFont, False, False)
+
+                objInstrumentItems(4) = New CInstrumentItem("Issuing Branch:" + ibrnm, IOIPageSettings.LeftMargin + 5, IOILines.Line2 + 1, DDFontcourier, False, False)
+
+                objInstrumentItems(5) = New CInstrumentItem("/CODE No: " + ibr, IOIPageSettings.LeftMargin + 40, IOILines.Line3 + 4, DDFontcourier, False, False)
+
+                objInstrumentItems(33) = New CInstrumentItem(CNST_CodeNo, IOIPageSettings.LeftMargin + 5, IOILines.Line3 + 3, DDHindiFont, False, False)
+                objInstrumentItems(6) = New CInstrumentItem("Tel No. " + itele, IOIPageSettings.LeftMargin + 5, IOILines.Line3 + 16, DDFontcourier, False, False)
+                objInstrumentItems(7) = New CInstrumentItem("" + "", IOIPageSettings.LeftMargin + 505, IOILines.Line2 + 6, DDFontcourier, False, False)
+                objInstrumentItems(8) = New CInstrumentItem("" + "", IOIPageSettings.LeftMargin + 505, IOILines.Line3 + 14, DDFontcourier, False, False)
+                objInstrumentItems(34) = New CInstrumentItem(" ON DEMAND PAY ", IOIPageSettings.LeftMargin + 40, IOILines.Line6 - 10, DDFontLcourier, False, False)
+                objInstrumentItems(14) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 115, IOILines.Line5 - 5, DDLargeFont, False, False)
+                objInstrumentItems(9) = New CInstrumentItem(namestrngArray(0), IOIPageSettings.LeftMargin + 110, IOILines.Line5 - 11, DDFontLcourier, False, False)
+                If Not namestrngArray(1) Is Nothing Then
+                    objInstrumentItems(14) = New CInstrumentItem(namestrngArray(1), IOIPageSettings.LeftMargin + 150, IOILines.Line6 - 10, DDFontLcourier, False, False)
+                End If
+
+                objInstrumentItems(10) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 65, IOILines.Line5 + 9, DDLargeFont, False, False)
+                objInstrumentItems(11) = New CInstrumentItem("DDMMYYYY", IOIPageSettings.LeftMargin + 610, IOILines.Line1 + 20, DDFontcourier, True, False, 20, 18, 1, 1, False, True)
+
+                objInstrumentItems(12) = New CInstrumentItem(CNST_OnDemandPay, IOIPageSettings.LeftMargin + 45, IOILines.Line5 - 11, DDHindiFontL, False, False)
+		'start of IR 19070031
+                'Dim amtround As String = Convert.ToInt64(amt)
+                Dim amtround As String = amt
+		'End of IR 19070031
+                Dim amtsplit As String = amnt.Split(".")(0)
+                Dim amntstrng As String = ParseNumber2Words(amnt)
+                Dim amntstrngArray() As String = SplitAmtString(amntstrng)
+
+                If amntstrngArray(1).Length = 0 Then
+                    amntstrngArray(0) = amntstrngArray(0) + "Only"
+                Else
+                    amntstrngArray(1) = amntstrngArray(1) + "Only"
+                End If
+
+                Dim lmargin As Int16 = 460
+                Dim firstamt As String = "(" + amtround.Substring(0, 1) + "/" + amtsplit.Length.ToString + ")"
+                Dim amtlength As Int16 = amtround.Length
+                If (amtround.Length > 0) Then
+                    While (amtlength >= 0)
+                        lmargin = lmargin + 15
+                        amtlength = amtlength - 1
+                    End While
+                End If
+                objInstrumentItems(15) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 70, IOILines.Line7 + 15, DDSmallFont, False, False, 43, 20, 1, 1, True)
+                objInstrumentItems(16) = New CInstrumentItem(amntstrngArray(0), IOIPageSettings.LeftMargin + 140, IOILines.Line6 + 3, DDFontcourier2, False, False)
+                If amntstrngArray(1).Length <> 0 Then
+                    objInstrumentItems(15) = New CInstrumentItem(amntstrngArray(1), IOIPageSettings.LeftMargin + 45, IOILines.Line7 + 15, DDFontcourier2, False, False)
+                End If
+
+                objInstrumentItems(39) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 458, IOILines.Line7 + 10, DDHindiFontL, False, False)
+
+                objInstrumentItems(17) = New CInstrumentItem(amnt.Split(".")(0) + "." + strPaiseDigits, IOIPageSettings.LeftMargin + 620, IOILines.Line7 + 10, DDFontcourier2, False, False)
+                objInstrumentItems(18) = New CInstrumentItem("", IOIPageSettings.LeftMargin + lmargin + 10, IOILines.Line7 + 10, DDFontcourier, False, False)
+                objInstrumentItems(38) = New CInstrumentItem("", IOIPageSettings.LeftMargin + lmargin, IOILines.Line7 + 10, DDHindiFontL, False, False)
+                objInstrumentItems(19) = New CInstrumentItem("", IOIPageSettings.LeftMargin + lmargin + 30, IOILines.Line7 + 10, DDDigitcourier, False, False, 15, 15, 1, 1, False)
+                objInstrumentItems(20) = New CInstrumentItem("", IOIPageSettings.LeftMargin, IOILines.Line7 + 6, DDHindiFontL, False, False)
+
+		'start of IR 19070031
+                'objInstrumentItems(21) = New CInstrumentItem("AMOUNT BELOW " + (CType(amnt.Split(".")(0), Int32) + 1).ToString + firstamt, IOIPageSettings.LeftMargin + 380, IOILines.Line10, DDFontcourier, False, False)
+		objInstrumentItems(21) = New CInstrumentItem("AMOUNT BELOW " + (CType(amnt.Split(".")(0), Int64) + 1).ToString + firstamt, IOIPageSettings.LeftMargin + 380, IOILines.Line10, DDFontcourier, False, False)
+		'End of IR 19070031
+
+                objInstrumentItems(22) = New CInstrumentItem("/ VALUE RECEIVED", IOIPageSettings.LeftMargin + 630, IOILines.Line10, DDFontcourier, False, False)
+
+                objInstrumentItems(23) = New CInstrumentItem(CNST_VALUE_RECEIVED, IOIPageSettings.LeftMargin + 580, IOILines.Line10 - 1, DDHindiFont, False, False)
+
+
+                objInstrumentItems(24) = New CInstrumentItem(CNST_OR_ORDER, IOIPageSettings.LeftMargin + 670, IOILines.Line5 - 11, DDHindiFontL, False, False)
+                objInstrumentItems(25) = New CInstrumentItem("OR ORDER", IOIPageSettings.LeftMargin + 695, IOILines.Line6 - 10, DDFontLcourier, False, False)
+
+
+                objInstrumentItems(26) = New CInstrumentItem(m_BankNameHindiDrawee, IOIPageSettings.LeftMargin + 250, IOILines.Line12 + 20, DDHindiFontL, False, False)
+
+                objInstrumentItems(27) = New CInstrumentItem(m_BankNameDrawee, IOIPageSettings.LeftMargin + 250, IOILines.Line13 + 21, DDTitleFontcourier, False, False)
+
+                objInstrumentItems(28) = New CInstrumentItem("/ DRAWEE BRANCH:" + dbrnm.Trim(), IOIPageSettings.LeftMargin + 320, IOILines.Line14 + 14, DDFontcourier, False, False)
+
+                objInstrumentItems(29) = New CInstrumentItem(CNST_DRAWEE_BRANCH, IOIPageSettings.LeftMargin + 250, IOILines.Line14 + 13, DDHindiFont, False, False)
+
+
+                objInstrumentItems(31) = New CInstrumentItem(CNST_CodeNo, IOIPageSettings.LeftMargin + 250, IOILines.Line14 + 25, DDHindiFont, False, False)
+                objInstrumentItems(30) = New CInstrumentItem("/CODE No: " + dbr.Trim(), IOIPageSettings.LeftMargin + 290, IOILines.Line14 + 26, DDFontcourier, False, False)
+                'Start of IR 261345
+                'objInstrumentItems(35) = New CInstrumentItem("Key: " + code, IOIPageSettings.LeftMargin + 140, IOILines.Line10, DDFontcourier, False, False)
+                objInstrumentItems(35) = New CInstrumentItem("Key: " + code, IOIPageSettings.LeftMargin + 165, IOILines.Line10, DDFontcourier, False, False)
+                'End of IR 261345
+                objInstrumentItems(32) = New CInstrumentItem("Sr. No: " + srl, IOIPageSettings.LeftMargin + 250, IOILines.Line10, DDFontcourier, False, False)
+                objInstrumentItems(36) = New CInstrumentItem(CNST_DemandDraft, IOIPageSettings.LeftMargin + 365, IOILines.Line2 - 10, DDLargeHindiFont, False, False)
+                objInstrumentItems(37) = New CInstrumentItem(dftnum1, IOIPageSettings.LeftMargin + 30, IOILines.Line10, DDFontcourier, False, False)
+
+                objInstrumentItems(40) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 175, IOILines.Line5 + 3, DDFontcourier, False, False)
+                objInstrumentItems(41) = New CInstrumentItem("", IOIPageSettings.LeftMargin, IOILines.Line6, DDFontcourier, False, False)
+                objInstrumentItems(42) = New CInstrumentItem("", IOIPageSettings.LeftMargin, IOILines.Line6, DDFontcourier, False, False)
+                'Start of IR 261376
+                'objInstrumentItems(43) = New CInstrumentItem("CARE:DUPLICATE", IOIPageSettings.LeftMargin + 310, IOILines.Line11 + 4, DDLargeFontcourier, False, False)
+                objInstrumentItems(43) = New CInstrumentItem("CARE:DUPLICATE", IOIPageSettings.LeftMargin + 310, IOILines.Line12 + 2, DDLargeFontcourier, False, False)
+                'End of IR 261376
+                objInstrumentItems(44) = New CInstrumentItem("Key: " + code, IOIPageSettings.LeftMargin + 520, IOILines.Line1 - 3, DDFontcourier, False, False)
+                objInstrumentItems(45) = New CInstrumentItem("Sr. No: " + srl, IOIPageSettings.LeftMargin + 520, IOILines.Line2 + 3, DDFontcourier, False, False)
+                'Start of IR 261376
+                objInstrumentItems(46) = New CInstrumentItem("Name of Applicant", IOIPageSettings.LeftMargin + 30, IOILines.Line11 + 3, DDFontcourier2, False, False)
+                objInstrumentItems(47) = New CInstrumentItem(appname, IOIPageSettings.LeftMargin + 165, IOILines.Line11 + 3, DDFontcourier2, False, False)
+                'End of IR 261376
+
+                'start of Ir 21070064
+
+                If Convert.ToDouble(amnt) >= chckamnt Then
+
+                    objInstrumentItems(48) = New CInstrumentItem(test, IOIPageSettings.LeftMargin + 180, IOILines.Line3 - 2, DDLargeFontBoldcourier, False, False)
+                Else
+
+                    objInstrumentItems(48) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 180, IOILines.Line3 - 2, DDLargeFontBoldcourier, False, False)
+                End If
+                'end of Ir 21070064
+
+                objInstrument.PrintInstrument(objInstrumentItems)
+
+            End If
+
+
+            If InstType = "3" Then
+
+                Dim objInstrument As New CInstrument(CInstrument.IntrumentTypes.GC, 900, 400, qnm)
+                Dim objInstItemGC As CInstrumentItem()
+                'start of Ir 21070064
+                'ReDim objInstItemGC(26)
+                ReDim objInstItemGC(27)
+                'end of Ir 21070064
+
+                Dim GCSmallFont As New Font(CNST_EnglishFontName, 9, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim GCFont As New Font(CNST_EnglishFontName, 12, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim GCTitleFont As New Font(CNST_EnglishFontName, 14, FontStyle.Bold, GraphicsUnit.Pixel)
+                Dim GCBoldFont As New Font(CNST_EnglishFontName, 13, FontStyle.Bold, GraphicsUnit.Pixel)
+
+                Dim GCSmallHindiFont As New Font(CNST_HindiFontName, 10, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim GCHindiFont As New Font(CNST_HindiFontName, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+                Dim GCTitleHindiFont As New Font(CNST_HindiFontName, 15, FontStyle.Bold, GraphicsUnit.Pixel)
+
+
+                objInstItemGC(0) = New CInstrumentItem("Negotiable at par all branches of", IOIPageSettings.LeftMargin, IOILines.Line2, GCSmallFont, False, False)
+
+                objInstItemGC(1) = New CInstrumentItem(m_BankName, IOIPageSettings.LeftMargin, IOILines.Line3 - 10, GCFont, False, False)
+                objInstItemGC(2) = New CInstrumentItem("GIFT CHEQUE", IOIPageSettings.LeftMargin + 355, IOILines.Line2, GCTitleFont, False, False)
+                objInstItemGC(3) = New CInstrumentItem("/Date:" + TempHostDate, IOIPageSettings.LeftMargin + 550, IOILines.Line1, GCFont, False, False)
+
+
+                objInstItemGC(4) = New CInstrumentItem("/ON DEMAND PAY TO " + pname, IOIPageSettings.LeftMargin + 70, IOILines.Line4 - 10, GCFont, False, False)
+
+                objInstItemGC(5) = New CInstrumentItem("OR ORDER", IOIPageSettings.LeftMargin + 630, IOILines.Line4 - 5, GCFont, False, False)
+                objInstItemGC(6) = New CInstrumentItem("RUPEES", IOIPageSettings.LeftMargin, IOILines.Line5 - 10, GCFont, False, False)
+                objInstItemGC(7) = New CInstrumentItem(amnt.Split(".")(0), IOIPageSettings.LeftMargin + 50, IOILines.Line5 - 10, GCSmallFont, True, False, 40, 20, 1, 1, True)
+                objInstItemGC(8) = New CInstrumentItem("Rs.", IOIPageSettings.LeftMargin + 448, IOILines.Line5 - 10, GCFont, False, False)
+
+                objInstItemGC(9) = New CInstrumentItem(amnt.Split(".")(0), IOIPageSettings.LeftMargin + 470, IOILines.Line5 - 10, GCSmallFont, True, True, 15, 15, 1, 1, False)
+                objInstItemGC(10) = New CInstrumentItem("Ps", IOIPageSettings.LeftMargin + 620, IOILines.Line5 - 10, GCFont, False, False)
+                objInstItemGC(11) = New CInstrumentItem(strPaiseDigits, IOIPageSettings.LeftMargin + 645, IOILines.Line5 - 10, GCSmallFont, True, True, 15, 15, 1, 1, False)
+
+                objInstItemGC(12) = New CInstrumentItem("PAISE " + objInstrument.GetPaiseString(strPaiseDigits.ToCharArray) + " ONLY", IOIPageSettings.LeftMargin + 50, IOILines.Line7 - 10, GCFont, False, False)
+
+
+                objInstItemGC(13) = New CInstrumentItem("For " + m_BankName, IOIPageSettings.LeftMargin + 410, IOILines.Line8 - 10, GCFont, False, False)
+                objInstItemGC(14) = New CInstrumentItem(m_BankName, IOIPageSettings.LeftMargin, IOILines.Line9 - 10, GCTitleFont, False, False)
+
+                objInstItemGC(15) = New CInstrumentItem(dbrnm.Trim(), IOIPageSettings.LeftMargin, IOILines.Line10 - 13, GCFont, False, False)
+
+                objInstItemGC(16) = New CInstrumentItem("GC NO:" + draftnumber, IOIPageSettings.LeftMargin, IOILines.Line11 - 3, GCFont, False, False)
+
+                objInstItemGC(17) = New CInstrumentItem("/Code No:" + dbr.Trim(), IOIPageSettings.LeftMargin + 45, IOILines.Line11 - 17, GCFont, False, False)
+
+
+
+                objInstItemGC(18) = New CInstrumentItem(CNST_RUPEES, IOIPageSettings.LeftMargin + 20, IOILines.Line6 - 10, GCHindiFont, False, False)
+                objInstItemGC(19) = New CInstrumentItem(m_BankNameHindi, IOIPageSettings.LeftMargin, IOILines.Line8 - 10, GCTitleHindiFont, False, False)
+
+                objInstItemGC(20) = New CInstrumentItem(CNST_OnDemandPay, IOIPageSettings.LeftMargin, IOILines.Line4 - 12, GCHindiFont, False, False)
+
+                objInstItemGC(21) = New CInstrumentItem(CNST_OR_ORDER, IOIPageSettings.LeftMargin + 630, IOILines.Line3, GCHindiFont, False, False)
+
+                objInstItemGC(22) = New CInstrumentItem(CNST_For + " " + m_BankNameHindi, IOIPageSettings.LeftMargin + 410, IOILines.Line7 - 8, GCHindiFont, False, False)
+
+                objInstItemGC(23) = New CInstrumentItem(CNST_Date, IOIPageSettings.LeftMargin + 515, IOILines.Line1 - 3, GCHindiFont, False, False)
+
+                objInstItemGC(24) = New CInstrumentItem(m_BankNameHindi + " " + CNST_Negotiable, IOIPageSettings.LeftMargin, IOILines.Line1 + 7, GCSmallHindiFont, False, False)
+
+                objInstItemGC(25) = New CInstrumentItem(CNST_CodeNo, IOIPageSettings.LeftMargin, IOILines.Line10 - 3, GCHindiFont, False, False)
+
+                objInstItemGC(26) = New CInstrumentItem(CNST_GC, IOIPageSettings.LeftMargin + 375, IOILines.Line1 - 3, GCTitleHindiFont, False, False)
+                'start of Ir 21070064
+                If Convert.ToDouble(amnt) >= chckamnt Then
+
+                    objInstItemGC(27) = New CInstrumentItem(test, IOIPageSettings.LeftMargin + 180, IOILines.Line3 - 2, GCTitleFont, False, False)
+                Else
+
+                    objInstItemGC(27) = New CInstrumentItem("", IOIPageSettings.LeftMargin + 180, IOILines.Line3 - 2, GCTitleFont, False, False)
+                End If
+                'end of IR 21070064
+                objInstrument.PrintInstrument(objInstItemGC)
+
+
+            End If
+        Catch e As Exception
+            oLogger.WriteEntry(e.Message, EventLogEntryType.Error)
+            Throw e
+        End Try
+
+        'start of IR 261345
+        Return ReturnPrintFlag
+    End Function
+    'End Sub
+    'end of IR 261345
+    Private Function DoPrintFile(ByVal xmlCurrentInDoc As FlowDistributorTypes.CFNSComponentDocument) As String
+        Dim keyval As String
+        easyPrintResult = True
+        Dim ReturnPrintFlag As String = "NA"
+        Dim sFilepath As String
+        Dim sPrinterName As String
+        Dim sOrientation As String
+        Dim sFileType As String
+        Dim LogString As String = ""
+        Dim EasyPrint As String = ""
+        Dim EasyPrintLog As String = ""
+        Dim logPath As String = System.AppDomain.CurrentDomain.BaseDirectory & "xml\logs\EasyPrinterLogs"
+        LogString = vbNewLine + "-------------------- " + Date.Now.ToString + " ** START EASY PRINTING LOGS --------------------"
+        Dim sTxnNo, vVariable, OutPassbk, exepath As String
+        Dim bPBCover As Boolean = False
+        Dim bPBTxn As Boolean = False
+        Dim XmlEasyPrintConfig As New XmlDocument()
+        exepath = (System.AppDomain.CurrentDomain.BaseDirectory & "bin").ToString
+        Try
+            sTxnNo = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//body/screenDataOriginal/TranNo").InnerText()
+            LogWriterCheck("------------- DoPrintFile sTxnNo: " + sTxnNo.ToString() + DateTime.Now.ToString())
+        Catch ex As Exception
+            sTxnNo = ""
+        End Try
+        Try
+            'Start of IR 20090073
+            'XmlEasyPrintConfig.Load(System.AppDomain.CurrentDomain.BaseDirectory & "xml\settings\EasyPrinting.xml")
+            Dim goodSettingsws As XmlReaderSettings = New XmlReaderSettings()
+            goodSettingsws.DtdProcessing = DtdProcessing.Ignore
+            goodSettingsws.XmlResolver = Nothing
+            goodSettingsws.ValidationType = ValidationType.Schema
+            goodSettingsws.Schemas = New XmlSchemaSet()
+            goodSettingsws.MaxCharactersFromEntities = 1024
+            goodSettingsws.IgnoreComments = True
+            Dim goodxmlreadws As XmlReader = XmlReader.Create(System.AppDomain.CurrentDomain.BaseDirectory & "xml\settings\EasyPrinting.xml", goodSettingsws)
+            XmlEasyPrintConfig.Load(goodxmlreadws)
+            goodxmlreadws.Close()
+            'End of IR 20090073
+            EasyPrint = XmlEasyPrintConfig.SelectSingleNode("//Live").InnerText
+            EasyPrintLog = XmlEasyPrintConfig.SelectSingleNode("//Trace").InnerText
+            LogWriterCheck("------------- DoPrintFile EasyPrint, EasyPrintLog: " + EasyPrintLog.ToString() + " ," + EasyPrint.ToString() + DateTime.Now.ToString())
+        Catch ex As Exception
+            EasyPrint = "N"
+            EasyPrintLog = "OFF"
+        End Try
+        sFilepath = xmlCurrentInDoc.getMethodParameterText("fileName", True)
+        LogWriterCheck("------------- DoPrintFile sFilepath: " + sFilepath.ToString() + DateTime.Now.ToString())
+        sPrinterName = xmlCurrentInDoc.getMethodParameterText("printerName", True)
+        LogWriterCheck("------------- DoPrintFile sPrinterName: " + sPrinterName.ToString() + DateTime.Now.ToString())
+        sOrientation = xmlCurrentInDoc.getMethodParameterText("orientation")
+        LogWriterCheck("------------- DoPrintFile sOrientation: " + sOrientation.ToString() + DateTime.Now.ToString())
+        sFileType = xmlCurrentInDoc.getMethodParameterText("fileType")
+        LogWriterCheck("------------- DoPrintFile sFileType: " + sFileType.ToString() + DateTime.Now.ToString())
+        Dim XmlPrintConfig As New XmlDocument()
+        Dim PrintFlag As String = ""
+        Dim PrintFlag_Log As String = ""
+        Try
+            'Start of IR 20090073
+            'XmlPrintConfig.Load(System.AppDomain.CurrentDomain.BaseDirectory & "xml\settings\BranchPrinterFlag.xml")
+            Dim goodSettingsws As XmlReaderSettings = New XmlReaderSettings()
+            goodSettingsws.DtdProcessing = DtdProcessing.Ignore
+            goodSettingsws.XmlResolver = Nothing
+            goodSettingsws.ValidationType = ValidationType.Schema
+            goodSettingsws.Schemas = New XmlSchemaSet()
+            goodSettingsws.MaxCharactersFromEntities = 1024
+            goodSettingsws.IgnoreComments = True
+            Dim goodxmlreadws As XmlReader = XmlReader.Create(System.AppDomain.CurrentDomain.BaseDirectory & "xml\settings\BranchPrinterFlag.xml", goodSettingsws)
+            XmlPrintConfig.Load(goodxmlreadws)
+            goodxmlreadws.Close()
+            'End of IR 20090073
+            PrintFlag = XmlPrintConfig.SelectSingleNode("//PrinterFlag").InnerText
+            LogWriterCheck("------------- DoPrintFile PrintFlag: " + PrintFlag.ToString() + DateTime.Now.ToString())
+        Catch ex As Exception
+            PrintFlag = "N"
+        End Try
+
+        Try
+
+            Dim userinfodata As String = xmlCurrentInDoc.body.SelectSingleNode("//userInfo/IP").InnerText
+            Dim rk As RegistryKey = Registry.LocalMachine
+
+            Dim sk As RegistryKey = rk.OpenSubKey("SOFTWARE\LangSettings")
+            If sk.ToString = vbNullString Then
+                keyval = "E"
+            Else
+                keyval = sk.GetValue(userinfodata.ToUpper()).ToString()
+
+            End If
+        Catch ex As Exception
+            keyval = "E"
+        End Try
+        If ((sTxnNo.Equals("001500") Or sTxnNo.Equals("001505") Or sTxnNo.Equals("001653")) And EasyPrint.Trim.Equals("Y") And keyval.Equals("E")) Then
+            LogString += vbNewLine + "TRANNO : " + sTxnNo.ToString + " PRINTER NAME : " + sPrinterName.ToString + " FILE NAME : " + sFilepath.ToString + " EXE PATH: " + exepath.ToString
+            vVariable = "c"
+            OutPassbk = printPassbook(sFilepath, sPrinterName, vVariable, exepath)
+            If OutPassbk <> 0 Then
+                easyPrintResult = False
+                ReturnPrintFlag = "TechError"
+            End If
+            LogString += vbNewLine + "OUTPUT CODE : " + OutPassbk.ToString
+        ElseIf ((sTxnNo.Equals("001620") Or sTxnNo.Equals("001600") Or sTxnNo.Equals("001601") Or sTxnNo.Equals("001621") Or sTxnNo.Equals("001655")) And EasyPrint.Equals("Y") And keyval.Equals("E")) Then
+            LogString += vbNewLine + "TRANNO : " + sTxnNo.ToString + " PRINTER NAME : " + sPrinterName.ToString + " FILE NAME : " + sFilepath.ToString + " EXE PATH: " + exepath.ToString
+            vVariable = "p"
+            OutPassbk = printPassbook(sFilepath, sPrinterName, vVariable, exepath)
+            If OutPassbk <> 0 Then
+                easyPrintResult = False
+                ReturnPrintFlag = "TechError"
+            End If
+            LogString += vbNewLine + "OUTPUT CODE : " + OutPassbk.ToString
+        Else
+            If PrintFlag = "N" Then
+                Dim oRTFPrinter As New FNSRTFPrinterAX.CRTFPrinter()
+                oRTFPrinter.InitialisePrinter(sPrinterName)
+                Select Case sOrientation.ToUpper
+                    Case "LANDSCAPE"
+                        oRTFPrinter.PrinterObject.Orientation = 2
+                    Case "PORTRAIT"
+                        oRTFPrinter.PrinterObject.Orientation = 1
+                    Case Else
+                End Select
+
+                If sFileType Is Nothing Or sFileType = "" Then
+                    oRTFPrinter.LoadFile(sFilepath)
+                Else
+                    oRTFPrinter.LoadFile(sFilepath, sFileType)
+                End If
+                oRTFPrinter.PrintRTF()
+            Else
+
+                Dim oRTFPrinter As TCSBranchPrinter.TCSBranchPrinter.CRTFPrinter = New TCSBranchPrinter.TCSBranchPrinter.CRTFPrinter
+                oRTFPrinter.PrinterSetting()
+                oRTFPrinter.InitialisePrinter(sPrinterName)
+                Select Case sOrientation.ToUpper
+                    Case "LANDSCAPE"
+                        oRTFPrinter.PrinterObject.Orientation = 2
+                    Case "PORTRAIT"
+                        oRTFPrinter.PrinterObject.Orientation = 1
+                    Case Else
+                End Select
+
+                If sFileType Is Nothing Or sFileType = "" Then
+                    LogWriterCheck("------------- DoPrintFile sFilepath: " + sFilepath.ToString() + DateTime.Now.ToString())
+                    oRTFPrinter.LoadFile(sFilepath)
+                Else
+                    oRTFPrinter.LoadFile(sFilepath, sFileType)
+                    LogWriterCheck("------------- DoPrintFile sFilepath: " + sFilepath.ToString() + DateTime.Now.ToString())
+                End If
+                oRTFPrinter.printRtf()
+            End If
+        End If
+        If EasyPrintLog.Equals("ON") Then
+            LogString += vbNewLine + "-------------------- " + Date.Now.ToString + " ** END EASY PRINTER LOGS --------------------" + vbNewLine
+            If Not Directory.Exists(logPath) Then
+                Try
+                    Directory.CreateDirectory(logPath)
+                Catch ex As Exception
+                End Try
+            End If
+            Dim txtdatetime As String = Convert.ToString(System.DateTime.Now.ToString("ddMMyyyy"))
+            Dim fs As FileStream = New FileStream(System.AppDomain.CurrentDomain.BaseDirectory & "xml\logs\EasyPrinterLogs\" + "EasyPrinting_" + txtdatetime + ".log", FileMode.Append, FileAccess.Write, FileShare.ReadWrite)
+            Dim write As New StreamWriter(fs)
+            write.WriteLine(LogString)
+            write.Close()
+            fs.Close()
+        End If
+        Return ReturnPrintFlag
+    End Function
+
+    Private Function DoPrintAllFiles(ByVal xmlCurrentInDoc As FlowDistributorTypes.CFNSComponentDocument) As String
+
+        Dim xmlDocumentsNodeList As Xml.XmlNodeList
+        Dim xmlDocumentNode As Xml.XmlNode
+        Dim keyval As String
+        easyPrintResult = True
+        Dim ReturnPrintFlag As String = "NA"
+        Dim sFilepath As String
+        Dim sPrinterName As String
+        Dim sOrientation As String
+        Dim sFileType As String
+        Dim LogString As String = ""
+        Dim EasyPrint As String = ""
+        Dim EasyPrintLog As String = ""
+        Dim logPath As String = System.AppDomain.CurrentDomain.BaseDirectory & "xml\logs\EasyPrinterLogs"
+        LogString = vbNewLine + "-------------------- " + Date.Now.ToString + " ** START EASY PRINTING LOGS --------------------"
+        Dim sTxnNo, vVariable, OutPassbk, exepath As String
+        Dim bPBCover As Boolean = False
+        Dim bPBTxn As Boolean = False
+        Dim XmlEasyPrintConfig As New XmlDocument()
+        exepath = (System.AppDomain.CurrentDomain.BaseDirectory & "bin").ToString
+        Try
+            sTxnNo = xmlCurrentInDoc.OwnerDocument.SelectSingleNode("//body/screenDataOriginal/TranNo").InnerText()
+        Catch ex As Exception
+            sTxnNo = ""
+        End Try
+        Try
+            'Start of IR 20090073
+            'XmlEasyPrintConfig.Load(System.AppDomain.CurrentDomain.BaseDirectory & "xml\settings\EasyPrinting.xml")
+            Dim goodSettingsws As XmlReaderSettings = New XmlReaderSettings()
+            goodSettingsws.DtdProcessing = DtdProcessing.Ignore
+            goodSettingsws.XmlResolver = Nothing
+            goodSettingsws.ValidationType = ValidationType.Schema
+            goodSettingsws.Schemas = New XmlSchemaSet()
+            goodSettingsws.MaxCharactersFromEntities = 1024
+            goodSettingsws.IgnoreComments = True
+            Dim goodxmlreadws As XmlReader = XmlReader.Create(System.AppDomain.CurrentDomain.BaseDirectory & "xml\settings\EasyPrinting.xml", goodSettingsws)
+            XmlEasyPrintConfig.Load(goodxmlreadws)
+            goodxmlreadws.Close()
+            'End of IR 20090073
+            EasyPrint = XmlEasyPrintConfig.SelectSingleNode("//Live").InnerText
+            EasyPrintLog = XmlEasyPrintConfig.SelectSingleNode("//Trace").InnerText
+        Catch ex As Exception
+            EasyPrint = "N"
+            EasyPrintLog = "OFF"
+        End Try
+        xmlDocumentsNodeList = xmlCurrentInDoc.body.SelectNodes("printDocuments/printDocument")
+        For Each xmlDocumentNode In xmlDocumentsNodeList
+            sFilepath = xmlDocumentNode.SelectSingleNode("fileName").InnerText
+            sPrinterName = xmlCurrentInDoc.body.SelectSingleNode("queueData").SelectSingleNode("printerName").InnerText
+            sOrientation = xmlCurrentInDoc.getMethodParameterText("orientation")
+            sFileType = xmlCurrentInDoc.getMethodParameterText("fileType")
+
+            Try
+
+                Dim userinfodata As String = xmlCurrentInDoc.body.SelectSingleNode("//userInfo/IP").InnerText
+                Dim rk As RegistryKey = Registry.LocalMachine
+
+                Dim sk As RegistryKey = rk.OpenSubKey("SOFTWARE\LangSettings")
+                If sk.ToString = vbNullString Then
+                    keyval = "E"
+                Else
+                    keyval = sk.GetValue(userinfodata.ToUpper()).ToString()
+                End If
+            Catch ex As Exception
+                keyval = "E"
+            End Try
+
+            Dim XmlPrintConfig As New XmlDocument()
+            Dim PrintFlag As String = ""
+            Dim PrintFlag_Log As String = ""
+            Try
+                'Start of IR 20090073
+                'XmlPrintConfig.Load(System.AppDomain.CurrentDomain.BaseDirectory & "xml\settings\BranchPrinterFlag.xml")
+                Dim goodSettingsws As XmlReaderSettings = New XmlReaderSettings()
+                goodSettingsws.DtdProcessing = DtdProcessing.Ignore
+                goodSettingsws.XmlResolver = Nothing
+                goodSettingsws.ValidationType = ValidationType.Schema
+                goodSettingsws.Schemas = New XmlSchemaSet()
+                goodSettingsws.MaxCharactersFromEntities = 1024
+                goodSettingsws.IgnoreComments = True
+                Dim goodxmlreadws As XmlReader = XmlReader.Create(System.AppDomain.CurrentDomain.BaseDirectory & "xml\settings\BranchPrinterFlag.xml", goodSettingsws)
+                XmlPrintConfig.Load(goodxmlreadws)
+                goodxmlreadws.Close()
+                'End of IR 20090073
+                PrintFlag = XmlPrintConfig.SelectSingleNode("//PrinterFlag").InnerText
+            Catch ex As Exception
+                PrintFlag = "N"
+            End Try
+
+            If ((sTxnNo.Equals("001500") Or sTxnNo.Equals("001505") Or sTxnNo.Equals("001653")) And EasyPrint.Trim.Equals("Y") And keyval.Equals("E")) Then
+                LogString += vbNewLine + "TRANNO : " + sTxnNo.ToString + " PRINTER NAME : " + sPrinterName.ToString + " FILE NAME : " + sFilepath.ToString + " EXE PATH: " + exepath.ToString
+                vVariable = "c"
+                OutPassbk = printPassbook(sFilepath, sPrinterName, vVariable, exepath)
+                If OutPassbk <> 0 Then
+                    easyPrintResult = False
+                    ReturnPrintFlag = "TechError"
+                End If
+                LogString += vbNewLine + "OUTPUT CODE : " + OutPassbk.ToString
+            ElseIf ((sTxnNo.Equals("001620") Or sTxnNo.Equals("001600") Or sTxnNo.Equals("001601") Or sTxnNo.Equals("001621") Or sTxnNo.Equals("001655")) And EasyPrint.Equals("Y") And keyval.Equals("E")) Then
+                LogString += vbNewLine + "TRANNO : " + sTxnNo.ToString + " PRINTER NAME : " + sPrinterName.ToString + " FILE NAME : " + sFilepath.ToString + " EXE PATH: " + exepath.ToString
+                vVariable = "p"
+                OutPassbk = printPassbook(sFilepath, sPrinterName, vVariable, exepath)
+                If OutPassbk <> 0 Then
+                    easyPrintResult = False
+                    ReturnPrintFlag = "TechError"
+                End If
+                LogString += vbNewLine + "OUTPUT CODE : " + OutPassbk.ToString
+            Else
+                If PrintFlag = "N" Then
+                    Dim oRTFPrinter As New FNSRTFPrinterAX.CRTFPrinter()
+                    oRTFPrinter.InitialisePrinter(sPrinterName)
+                    Select Case sOrientation.ToUpper
+                        Case "LANDSCAPE"
+                            oRTFPrinter.PrinterObject.Orientation = 2
+                        Case "PORTRAIT"
+                            oRTFPrinter.PrinterObject.Orientation = 1
+                        Case Else
+                    End Select
+
+                    If sFileType Is Nothing Or sFileType = "" Then
+                        oRTFPrinter.LoadFile(sFilepath)
+                    Else
+                        oRTFPrinter.LoadFile(sFilepath, sFileType)
+                    End If
+                    oRTFPrinter.PrintRTF()
+                Else
+                    Dim oRTFPrinter As TCSBranchPrinter.TCSBranchPrinter.CRTFPrinter = New TCSBranchPrinter.TCSBranchPrinter.CRTFPrinter
+                    oRTFPrinter.PrinterSetting()
+                    oRTFPrinter.InitialisePrinter(sPrinterName)
+                    Select Case sOrientation.ToUpper
+                        Case "LANDSCAPE"
+                            oRTFPrinter.PrinterObject.Orientation = 2
+                        Case "PORTRAIT"
+                            oRTFPrinter.PrinterObject.Orientation = 1
+                        Case Else
+                    End Select
+
+                    If sFileType Is Nothing Or sFileType = "" Then
+                        oRTFPrinter.LoadFile(sFilepath)
+                    Else
+                        oRTFPrinter.LoadFile(sFilepath, sFileType)
+                    End If
+
+                    oRTFPrinter.printRtf()
+
+
+                End If
+
+            End If
+        Next
+        If EasyPrintLog.Equals("ON") Then
+            LogString += vbNewLine + "-------------------- " + Date.Now.ToString + " ** END EASY PRINTER LOGS --------------------" + vbNewLine
+            If Not Directory.Exists(logPath) Then
+                Try
+                    Directory.CreateDirectory(logPath)
+                Catch ex As Exception
+                End Try
+            End If
+            Dim txtdatetime As String = Convert.ToString(System.DateTime.Now.ToString("ddMMyyyy"))
+            Dim fs As FileStream = New FileStream(System.AppDomain.CurrentDomain.BaseDirectory & "xml\logs\EasyPrinterLogs\" + "EasyPrinting_" + txtdatetime + ".log", FileMode.Append, FileAccess.Write, FileShare.ReadWrite)
+            Dim write As New StreamWriter(fs)
+            write.WriteLine(LogString)
+            write.Close()
+            fs.Close()
+        End If
+        Return ReturnPrintFlag
+    End Function
+
+    Public Function CallPrintFile(ByVal xmlCurrentInDoc As FlowDistributorTypes.CFNSComponentDocument) As String
+        Dim Flag As String
+        LogWriterCheck("------------- CallRemotePrintFile xmlCurrentInDoc: " + xmlCurrentInDoc.ToString() + DateTime.Now.ToString())
+        Flag = DoPrintFile(xmlCurrentInDoc)
+        LogWriterCheck("------------- CallRemotePrintFile Flag: " + Flag.ToString() + DateTime.Now.ToString())
+        Return Flag
+    End Function
+
+    Public Function CallPrintAllFiles(ByVal xmlCurrentInDoc As FlowDistributorTypes.CFNSComponentDocument) As String
+        Dim Flag As String
+        Flag = DoPrintAllFiles(xmlCurrentInDoc)
+        Return Flag
+    End Function
+
+    'Start of IR 261345
+    Public Function CallPrintIOI(ByVal xmlCurrentInDoc As FlowDistributorTypes.CFNSComponentDocument) As String
+        Dim Flag As String
+        Flag = PrintInstrumentIOI(xmlCurrentInDoc)
+        Return Flag
+    End Function
+    'End of IR 261345
+
+    Private Sub DoPrintText(ByVal xmlCurrentInDoc As FlowDistributorTypes.CFNSComponentDocument)
+
+        Dim sRTFText As String
+        Dim sPrinterName As String
+        Dim sOrientation As String
+        Dim oRTFPrinter As New FNSRTFPrinterAX.CRTFPrinter()
+
+        sRTFText = xmlCurrentInDoc.getMethodParameterText("rtfText", True)
+        sPrinterName = xmlCurrentInDoc.getMethodParameterText("printerName", True)
+        sOrientation = xmlCurrentInDoc.getMethodParameterText("orientation")
+
+        oRTFPrinter.InitialisePrinter(sPrinterName)
+        Select Case sOrientation.ToUpper
+            Case "LANDSCAPE"
+                oRTFPrinter.PrinterObject.Orientation = 2
+            Case "PORTRAIT"
+                oRTFPrinter.PrinterObject.Orientation = 1
+            Case Else
+        End Select
+        oRTFPrinter.TextRTF = sRTFText
+        oRTFPrinter.PrintRTF()
+
+    End Sub
+
+
+    Public Sub New()
+
+        oLogger = New FlowDistributorTypes.CFNSEventLogger("CFNSRTFPrinter")
+
+    End Sub
+
+    Protected Overrides Sub Finalize()
+        MyBase.Finalize()
+        oLogger = Nothing
+    End Sub
+    Private Function GetBankName(ByVal nCode As String, ByVal nLanguageCode As Integer) As String
+        Select Case nLanguageCode
+            Case 0
+                Select Case nCode
+                    Case "0"
+                        GetBankName = CNST_SBI
+                    Case "1"
+                        GetBankName = CNST_SBBJ
+                    Case "2"
+                        GetBankName = CNST_SBH
+                    Case "3"
+                        GetBankName = CNST_SBIn
+                    Case "4"
+                        GetBankName = CNST_SBM
+                    Case "5"
+                        GetBankName = CNST_SBP
+                    Case "6"
+                        GetBankName = CNST_SBS
+                    Case "7"
+                        GetBankName = CNST_SBT
+                    Case Else
+                        Throw New FlowDistributorTypes.BusinessException(1002, "BANKCODE", nCode)
+                End Select
+
+            Case 1
+                Select Case nCode
+                    Case "0"
+                        GetBankName = CNST_Hindi_SBI
+                    Case "1"
+                        GetBankName = CNST_Hindi_SBBJ
+                    Case "2"
+                        GetBankName = CNST_Hindi_SBH
+                    Case "3"
+                        GetBankName = CNST_Hindi_SBIn
+                    Case "4"
+                        GetBankName = CNST_Hindi_SBM
+                    Case "5"
+                        GetBankName = CNST_Hindi_SBP
+                    Case "6"
+                        GetBankName = CNST_Hindi_SBS
+                    Case "7"
+                        GetBankName = CNST_Hindi_SBT
+                    Case Else
+                        Throw New FlowDistributorTypes.BusinessException(1002, "BANKCODE", nCode)
+                End Select
+        End Select
+
+    End Function
+
+    Private Function ParseNumber2Words(ByVal NumberValue As String) As String
+
+        Dim FormattedValue As String
+        Dim NumberMain As String
+        Dim DecimalMain As String
+        Dim NumberSub As String
+        Dim MainArray() As String
+        Dim NumberMainArray() As String
+        Dim NumberMainArrayLen As Integer
+
+        Dim counter As Integer
+        Dim location As Integer
+        Dim Word As String = ""
+        Dim AndWord As String = ""
+        AddAndInInteger = False
+
+        FormattedValue = NumberValue
+        MainArray = FormattedValue.Split(Convert.ToChar("."))
+
+        If (MainArray.Length <= 2) Then
+            If (MainArray.Length = 1) Then
+                AddAndInInteger = True
+            ElseIf (MainArray(1) = "") Then
+                AddAndInInteger = True
+            ElseIf (Convert.ToInt64(MainArray(1)) < 1) Then
+                AddAndInInteger = True
+            End If
+            NumberMain = MainArray(0)
+            NumberMain = MakeINR(NumberMain)
+            NumberMain = Left(NumberMain, NumberMain.Length - 3)
+            NumberMainArray = NumberMain.Split(Convert.ToChar(","))
+            NumberMainArrayLen = NumberMainArray.Length
+            For counter = NumberMainArrayLen - 1 To 0 Step -1
+                location = (NumberMainArrayLen - 1) - counter
+                If (Convert.ToInt64(NumberMainArray(counter)) > 0) Then
+                    If (location = 0) Then
+                        Word = MakeWord(NumberMainArray(counter)) + Word
+                    Else
+                        Word = MakeWord(NumberMainArray(counter)) + MakeQualifier(location) + Word
+                    End If
+                End If
+            Next
+            If (AddAndInInteger = False) Then
+                If (Word <> "") Then
+                    AndWord = "and "
+                End If
+                DecimalMain = MainArray(1)
+                If (DecimalMain.Length = 1) Then
+                    DecimalMain += "0"
+                End If
+                Word += AndWord + MakeQualifier(-1) + MakeWord(DecimalMain)
+            End If
+            Return Word
+        End If
+
+    End Function
+    Private Function MakeWord(ByVal FromValue As String) As String
+
+        Dim sDefaultCurrency As String = "INR"
+        Dim Word As String = ""
+        Dim AndWord As String = "and "
+        Dim Valuelength As Integer = FromValue.Length
+        Dim IntValue As Long = Convert.ToInt64(FromValue)
+        Dim StoreAndLocation As Boolean
+        If (Valuelength < 4) Then
+            If (Valuelength = 3) Then
+                If (Convert.ToInt32(FromValue.Substring(0, 1)) > 0) Then
+                    Word += ParseOne(FromValue.Substring(0, 1))
+                    Word += MakeQualifier(0)
+                    If (AddAndInInteger And Convert.ToInt32(FromValue.Substring(1, 2)) > 0) Then
+                        Word += AndWord
+                    End If
+                End If
+                IntValue = Convert.ToInt64(FromValue.Substring(1, 2))
+                FromValue = FromValue.Substring(1, 2)
+            End If
+            If (IntValue >= 1 And IntValue <= 9) Then
+                If (FromValue.Length > 1) Then
+                    FromValue = FromValue.Substring(1, 1)
+                End If
+                Word += ParseOne(FromValue)
+            ElseIf (IntValue >= 10 And IntValue <= 19) Then
+                Word += ParseTen(FromValue)
+            ElseIf (IntValue >= 20 And IntValue <= 99) Then
+                Word += ParseTwenty(FromValue)
+            End If
+        Else
+            StoreAndLocation = AddAndInInteger
+            Word += ParseNumber2Words(FromValue)
+            AddAndInInteger = StoreAndLocation
+        End If
+        Return Word
+
+    End Function
+
+    Private Function ParseOne(ByVal FromValue As String) As String
+
+        Dim Word As String = ""
+        Select Case (FromValue)
+            Case "0"
+                Word = "Zero "
+            Case "1"
+                Word = "One "
+            Case "2"
+                Word = "Two "
+            Case "3"
+                Word = "Three "
+            Case "4"
+                Word = "Four "
+            Case "5"
+                Word = "Five "
+            Case "6"
+                Word = "Six "
+            Case "7"
+                Word = "Seven "
+            Case "8"
+                Word = "Eight "
+            Case "9"
+                Word = "Nine "
+        End Select
+        Return Word
+
+    End Function
+
+    Private Function ParseTen(ByVal FromValue As String) As String
+
+        Dim Word As String = ""
+        Select Case (FromValue)
+            Case "10"
+                Word = "Ten "
+            Case "11"
+                Word = "Eleven "
+            Case "12"
+                Word = "Twelve "
+            Case "13"
+                Word = "Thirteen "
+            Case "14"
+                Word = "Fourteen "
+            Case "15"
+                Word = "Fifteen "
+            Case "16"
+                Word = "Sixteen "
+            Case "17"
+                Word = "Seventeen "
+            Case "18"
+                Word = "Eighteen "
+            Case "19"
+                Word = "Nineteen "
+        End Select
+        Return Word
+
+    End Function
+
+    Private Function ParseTwenty(ByVal FromValue As String) As String
+
+        Dim Word As String = ""
+        Dim FirstValue As Integer
+        Dim SecondValue As Integer
+        SecondValue = Convert.ToInt32(FromValue) Mod 10
+        FirstValue = (Convert.ToInt32(FromValue) - SecondValue)
+        Select Case (FirstValue)
+            Case 20
+                Word = "Twenty "
+            Case 30
+                Word = "Thirty "
+            Case 40
+                Word = "Forty "
+            Case 50
+                Word = "Fifty "
+            Case 60
+                Word = "Sixty "
+            Case 70
+                Word = "Seventy "
+            Case 80
+                Word = "Eighty "
+            Case 90
+                Word = "Ninety "
+        End Select
+        If (SecondValue > 0) Then
+            Word += ParseOne(FromValue.Substring(1, 1))
+        End If
+        Return Word
+
+    End Function
+
+    Private Function MakeQualifier(ByVal location As Integer) As String
+
+        Dim Word As String = ""
+        'Start of IR 261377
+        Dim XmlCountry As New XmlDocument()
+        Dim XmlCountryNode As XmlNodeList
+        'Start of IR 20090073
+        'XmlCountry.Load(System.AppDomain.CurrentDomain.BaseDirectory & "xml\COUNTRY.xml")
+        Dim goodSettingsws As XmlReaderSettings = New XmlReaderSettings()
+        goodSettingsws.DtdProcessing = DtdProcessing.Ignore
+        goodSettingsws.XmlResolver = Nothing
+        goodSettingsws.ValidationType = ValidationType.Schema
+        goodSettingsws.Schemas = New XmlSchemaSet()
+        goodSettingsws.MaxCharactersFromEntities = 1024
+        goodSettingsws.IgnoreComments = True
+        Dim goodxmlreadws As XmlReader = XmlReader.Create(System.AppDomain.CurrentDomain.BaseDirectory & "xml\COUNTRY.xml", goodSettingsws)
+        XmlCountry.Load(goodxmlreadws)
+        goodxmlreadws.Close()
+        'End of IR 20090073
+        XmlCountryNode = XmlCountry.DocumentElement.SelectNodes("/COUNTRYDATA/DATA_RECORD")
+        Dim CurrencyName As String = ""
+        Dim CurrencyUnitsName As String = ""
+        Dim CurrencyDecimalsName As String = ""
+        'End of IR 261377
+        Select Case (location)
+            Case -3
+                'Start of IR 261377
+                'Dim oParamsCol As New Collection()
+                'Dim oCd As New CFNSDatabase()
+                'Dim oReader As IDataReader
+                'oParamsCol.Add(New Database.FnsParam("sCurrencyCode", Database.FNSParamType.echar, sCurrency))
+                'oReader = oCd.ExecuteStoredProc("GETCOUNTRYCURRENCYCODE", oParamsCol)
+                'If oReader.Read() Then
+                '   Word = Convert.ToString(oReader.Item("CurrencyName"))
+                'Else
+                '   Word = "Rupees"
+                'End If
+                'oReader.Close()
+                'oCd.Close()
+                'Word = "Rupees"
+                'Word = LTrim(LTrim(Word)) + " "
+                Try
+                    Word = "Rupees"
+                    For Each XmlValues As XmlNode In XmlCountryNode
+                        If XmlValues.InnerText = sCurrency Then
+                            CurrencyName = XmlValues.SelectSingleNode("CURRENCYNAME").InnerText
+                            Word = CurrencyName
+                        End If
+                    Next
+                Catch ex As Exception
+                    Word = "Rupees"
+                End Try
+                Word = LTrim(LTrim(Word)) + " "
+                'End of IR 261377
+            Case -2
+                'Start of IR 261377
+                'Dim oParamsCol As New Collection()
+                'Dim oCd As New CFNSDatabase()
+                'Dim oReader As IDataReader
+                'oParamsCol.Add(New Database.FnsParam("sCurrencyCode", Database.FNSParamType.echar, sCurrency))
+                'oReader = oCd.ExecuteStoredProc("GETCOUNTRYCURRENCYCODE", oParamsCol)
+                'If oReader.Read() Then
+                '    Word = Convert.ToString(oReader.Item("CurrencyUnitsName"))
+                'Else
+                '    Word = "Rupees"
+                'End If
+                'oReader.Close()
+                'oCd.Close()
+                'Word = "Rupees"
+                'Word = LTrim(LTrim(Word)) + " "
+                Try
+                    Word = "Rupees"
+                    For Each XmlValues As XmlNode In XmlCountryNode
+                        If XmlValues.InnerText = sCurrency Then
+                            CurrencyUnitsName = XmlValues.SelectSingleNode("CURRENCYUNITSNAME").InnerText
+                            Word = CurrencyUnitsName
+                        End If
+                    Next
+                Catch ex As Exception
+                    Word = "Rupees"
+                End Try
+                Word = LTrim(LTrim(Word)) + " "
+                'End of IR 261377
+            Case -1
+                'Start of IR 261377
+                'Dim oParamsCol As New Collection()
+                'Dim oCd As New CFNSDatabase()
+                'Dim oReader As IDataReader
+                'oParamsCol.Add(New Database.FnsParam("sCurrencyCode", Database.FNSParamType.echar, sCurrency))
+                'oReader = oCd.ExecuteStoredProc("GETCOUNTRYCURRENCYCODE", oParamsCol)
+                'If oReader.Read() Then
+                '    Word = Convert.ToString(oReader.Item("CurrencyDecimalsName"))
+                'Else
+                '    Word = "Paise"
+                'End If
+                'oReader.Close()
+                'oCd.Close()
+                'Word = "Paise"
+                'Word = LTrim(LTrim(Word)) + " "
+                'Word = "Paise "
+                Try
+                    Word = "Paise"
+                    For Each XmlValues As XmlNode In XmlCountryNode
+                        If XmlValues.InnerText = sCurrency Then
+                            CurrencyDecimalsName = XmlValues.SelectSingleNode("CURRENCYDECIMALSNAME").InnerText
+                            Word = CurrencyDecimalsName
+                        End If
+                    Next
+                Catch ex As Exception
+                    Word = "Paise"
+                End Try
+                Word = LTrim(LTrim(Word)) + " "
+                Word = "Paise "
+                'End of IR 261377
+            Case 0
+                Word = "Hundred "
+            Case 1
+                Word = "Thousand "
+            Case 2
+                Word = "Lakh "
+            Case 3
+                Word = "Crore "
+        End Select
+        Return Word
+
+    End Function
+
+
+    Private Function MakeINR(ByVal NumberValue As String) As String
+        Dim WholeValue As String = NumberValue
+        Dim MainArray() As String
+        Dim IntegerLength As Integer
+        Dim IntegerPart As String
+        Dim OutValue As String
+        Dim sign As Boolean = False
+
+        If WholeValue.Substring(0, 1) = "+" Or WholeValue.Substring(0, 1) = "-" Then
+            sign = True
+            NumberValue = WholeValue.Substring(1)
+        Else
+            NumberValue = WholeValue
+        End If
+
+        MainArray = NumberValue.Split(Convert.ToChar("."))
+        If IsArray(MainArray) Then
+            If MainArray.Length < 2 Then
+                ReDim Preserve MainArray(1)
+                MainArray(1) = "00"
+            End If
+        End If
+
+        IntegerPart = MainArray(0)
+        IntegerLength = IntegerPart.Length
+        If IntegerLength > 7 Then
+            IntegerPart = String.Concat(IntegerPart.Substring(0, IntegerLength - 7), ",", IntegerPart.Substring(IntegerLength - 7, 2), ",", IntegerPart.Substring(IntegerLength - 5, 2), ",", IntegerPart.Substring(IntegerLength - 3, 3))
+        ElseIf IntegerLength > 5 Then
+            IntegerPart = String.Concat(IntegerPart.Substring(0, IntegerLength - 5), ",", IntegerPart.Substring(IntegerLength - 5, 2), ",", IntegerPart.Substring(IntegerLength - 3, 3))
+        ElseIf IntegerLength > 3 Then
+            IntegerPart = String.Concat(IntegerPart.Substring(0, IntegerLength - 3), ",", IntegerPart.Substring(IntegerLength - 3, 3))
+        End If
+
+        If MainArray.Length > 1 Then
+            OutValue = IntegerPart + "." + MainArray(1).PadRight(2, "0").ToString
+        Else
+            OutValue = IntegerPart
+        End If
+
+        If sign Then
+            OutValue = WholeValue.Substring(0, 1) + OutValue
+        End If
+        Return OutValue
+
+    End Function
+
+    Private Function SplitAmtString(ByVal amntstrng As String) As String()
+        Dim words() As String = amntstrng.Split(" ")
+        Dim retstring(2) As String
+        Dim len As Integer = 0
+        Dim i As Integer = 0
+        Dim j As Integer = 0
+
+        retstring(0) = ""
+        retstring(1) = ""
+
+        For i = 0 To words.Length - 1
+            retstring(0) = retstring(0) + words(i) + " "
+            len = len + words(i).Length
+
+            If len >= 70 Then
+                i = i + 1
+                GoTo OUTFOR
+            End If
+        Next
+OUTFOR:
+        For j = i To words.Length - 1
+            retstring(1) = retstring(1) + words(j) + " "
+        Next
+
+        Return retstring
+    End Function
+
+
+End Class
