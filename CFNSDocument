@@ -1,0 +1,844 @@
+Imports System.Xml
+Imports System.Xml.Schema
+Imports System.Xml.XPath
+Imports System.Xml.Linq
+
+Public Class CFNSComponentDocument
+    Private mxmlComDoc As Xml.XmlElement
+    Const sFlowRelPath As String = "xml/workflows"
+
+    Public Sub New()
+        Dim xmlTempDoc As New Xml.XmlDocument()
+	'Start of adding of IR 19090058 for A608
+        'START OF IR 19090058 (XML External Entity Injection)
+        Dim xml_Byte() As Byte = New System.Text.UnicodeEncoding().GetBytes("<componentDocument version='2.0'><header><component><method/><properties/></component></header><body/></componentDocument>")
+        Dim xml_MS As New System.IO.MemoryStream(xml_Byte)
+
+        Dim goodSettings As XmlReaderSettings = New XmlReaderSettings()
+        goodSettings.DtdProcessing = DtdProcessing.Ignore
+        goodSettings.XmlResolver = Nothing
+        goodSettings.ValidationType = ValidationType.Schema
+        goodSettings.Schemas = New XmlSchemaSet()
+        goodSettings.MaxCharactersFromEntities = 1024
+        goodSettings.IgnoreComments = True
+
+        Dim goodxmlread As XmlReader = XmlReader.Create(xml_MS, goodSettings)
+        xmlTempDoc.Load(goodxmlread)
+        goodxmlread.Close()
+        'xmlTempDoc.LoadXml("<componentDocument version='2.0'><header><component><method/><properties/></component></header><body/></componentDocument>")
+
+        'END OF IR 19090058 (XML External Entity Injection)
+	'End of adding of IR 19090058 for A608
+
+        mxmlComDoc = xmlTempDoc.DocumentElement
+
+    End Sub
+
+    Public Sub New(ByRef componentDocument As Xml.XmlElement)
+        mxmlComDoc = componentDocument
+    End Sub
+
+    Public ReadOnly Property OwnerDocument() As Xml.XmlDocument
+        Get
+            Return mxmlComDoc.OwnerDocument
+        End Get
+    End Property
+
+    Public ReadOnly Property XMLElement() As Xml.XmlElement
+        Get
+            Return mxmlComDoc
+        End Get
+    End Property
+
+    Public Sub loadWorkflowNode(ByVal flowNode As Xml.XmlNode)
+        Dim nodeParameter As Xml.XmlNode
+
+        Try 'append new Sub Document node
+            flowNodeID = flowNode.Attributes.GetNamedItem("ID").Value
+            component = flowNode.SelectSingleNode("component")t
+        Catch e As Exception
+            System.Diagnostics.Debug.Assert(True, e.Message)
+            Throw e
+        End Try
+    End Sub
+
+    Public Sub Save(ByVal Filename As String)
+        Dim XMLLogDoc As Xml.XmlDocument = New Xml.XmlDocument()
+        Dim mxmlComDoc_Byte() As Byte = New System.Text.UnicodeEncoding().GetBytes(mxmlComDoc.OuterXml)
+        Dim mxmlComDoc_MS As New System.IO.MemoryStream(mxmlComDoc_Byte)
+
+        Dim goodSettings As XmlReaderSettings = New XmlReaderSettings()
+        goodSettings.DtdProcessing = DtdProcessing.Ignore
+        goodSettings.XmlResolver = Nothing
+        goodSettings.ValidationType = ValidationType.Schema
+        goodSettings.Schemas = New XmlSchemaSet()
+        goodSettings.MaxCharactersFromEntities = 1024
+        goodSettings.IgnoreComments = True
+
+        Dim goodxmlread As XmlReader = XmlReader.Create(mxmlComDoc_MS, goodSettings)
+        XMLLogDoc.Load(goodxmlread)
+        goodxmlread.Close()
+        XMLLogDoc.Save(Filename)
+        XMLLogDoc = Nothing
+
+    End Sub
+
+    Public ReadOnly Property header() As Xml.XmlNode
+        Get
+            Return getChildNode(mxmlComDoc, "header")
+        End Get
+
+    End Property
+
+    Friend Sub setHeader(ByVal xmlHeaderNode As Xml.XmlNode)
+
+        setChildNode(mxmlComDoc, xmlHeaderNode)
+
+    End Sub
+
+    Public Property index() As Xml.XmlNode
+        Get
+            Return getChildNode(header, "index")
+        End Get
+
+        Set(ByVal Value As Xml.XmlNode)
+            setChildNode(header, Value)
+        End Set
+    End Property
+
+    Public Property indexValue() As String
+        Get
+            Return index.InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            index.InnerText = Value
+        End Set
+    End Property
+
+    Public Property flow() As Xml.XmlNode
+        Get
+            Return getChildNode(header, "flow")
+        End Get
+
+        Set(ByVal Value As Xml.XmlNode)
+            setChildNode(header, Value)
+        End Set
+    End Property
+
+    Public Property flowOriginator() As Xml.XmlNode
+        Get
+            Return getChildNode(flow, "originatorUserInfo")
+        End Get
+
+        Set(ByVal Value As Xml.XmlNode)
+            setChildNode(flow, Value)
+        End Set
+    End Property
+
+    Public Property documentVersion() As String
+        Get
+            Return getAttribute(mxmlComDoc, "version").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getAttribute(mxmlComDoc, "version").InnerText = Value
+        End Set
+    End Property
+
+    Public Property flowID() As String
+        Get
+            Return getAttribute(flow, "ID").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getAttribute(flow, "ID").InnerText = Value
+        End Set
+    End Property
+    Public Property flowNodeID() As String
+        Get
+            Return getAttribute(flow, "nodeID").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getAttribute(flow, "nodeID").InnerText = Value
+        End Set
+    End Property
+
+    Public Property flowFilePath() As String
+        Get
+            Return flow.InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            flow.InnerText = Value
+        End Set
+    End Property
+
+    Public Property component() As Xml.XmlNode
+        Get
+            Return getChildNode(header, "component")
+        End Get
+
+        Set(ByVal Value As Xml.XmlNode)
+            setChildNode(header, Value)
+        End Set
+    End Property
+    Public Property componentID() As String
+        Get
+            Return getAttribute(component, "ID").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getAttribute(component, "ID").InnerText = Value
+        End Set
+    End Property
+    Public Property componentAssemblyName() As String
+        Get
+            Return getAttribute(component, "assemblyName").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getAttribute(component, "assemblyName").InnerText = Value
+        End Set
+    End Property
+    Public Property componentRunAt() As String
+        Get
+            Return getAttribute(component, "runAt").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getAttribute(component, "runAt").InnerText = Value
+        End Set
+    End Property
+
+    Public Property componentVersion() As String
+        Get
+            Return getAttribute(component, "version").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getAttribute(component, "version").InnerText = Value
+        End Set
+    End Property
+
+    Public Property componentLogging() As Boolean
+        Get
+            Return getAttribute(component, "logging").InnerText.ToLower = "true"
+        End Get
+
+        Set(ByVal Value As Boolean)
+            getAttribute(component, "logging").InnerText = Value.ToString
+        End Set
+    End Property
+    Public Property flowRootPath() As String
+        Get
+            Return getChildNode(flow, "rootPath").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getChildNode(flow, "rootPath").InnerText = Value
+        End Set
+    End Property
+
+    Public Property flowFileName() As String
+        Get
+            Return getChildNode(flow, "fileName").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getChildNode(flow, "fileName").InnerText = Value
+        End Set
+    End Property
+
+    Public Property method() As Xml.XmlNode
+        Get
+            Return getChildNode(component, "method")
+        End Get
+
+        Set(ByVal Value As Xml.XmlNode)
+            setChildNode(component, Value)
+        End Set
+    End Property
+    Public Property methodResult() As String
+        Get
+            Return getAttribute(method, "result").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getAttribute(method, "result").InnerText = Value
+        End Set
+    End Property
+    Public Property methodName() As String
+        Get
+            Return getAttribute(method, "name").InnerText
+        End Get
+
+        Set(ByVal Value As String)
+            getAttribute(method, "name").InnerText = Value
+        End Set
+    End Property
+
+    Public Function getMethodParameterValue(ByVal sParameterName As String, ByVal bRequired As Boolean) As System.ValueType
+        Dim sTempValue As String
+        sTempValue = getMethodParameterText(sParameterName, bRequired)
+        If sTempValue = "" And bRequired Then
+            Throw New Exception("Required method parameter """ + sParameterName + """ for method """ + methodName + """ is missing")
+        Else
+            Return Val(sTempValue)
+        End If
+
+    End Function
+
+    Public Function getMethodParameterValue(ByVal sParameterName As String) As System.ValueType
+
+        Return getMethodParameterValue(sParameterName, False)
+
+    End Function
+
+    Public Function getMethodParameterText(ByVal sParameterName As String) As String
+
+        Return getMethodParameterText(sParameterName, False)
+
+    End Function
+
+    Public Function getMethodParameterText(ByVal oParameterNode As Xml.XmlNode) As String
+        Dim xmlResultNode As Xml.XmlNode
+
+        xmlResultNode = getMethodParameterNode(oParameterNode)
+        Try
+            If xmlResultNode.FirstChild.NodeType = Xml.XmlNodeType.Text Then
+                Return xmlResultNode.InnerText
+            Else
+                Return xmlResultNode.InnerXml
+            End If
+        Catch
+            Return ""
+        End Try
+
+
+    End Function
+
+
+    Public Function getMethodParameterText(ByVal sParameterName As String, ByVal bRequired As Boolean) As String
+        Dim xmlResultNode As Xml.XmlNode
+
+        xmlResultNode = getMethodParameterNode(sParameterName, bRequired)
+        Try
+            If xmlResultNode.FirstChild.NodeType = Xml.XmlNodeType.Text Then
+                Return xmlResultNode.InnerText
+            Else
+                Return xmlResultNode.InnerXml
+            End If
+        Catch
+            Return ""
+        End Try
+
+    End Function
+
+
+    Public Function getMethodParameterNode(ByVal oParameterNode As Xml.XmlNode) As Xml.XmlNode
+        Dim xmlNodeResult As Xml.XmlNode
+        Dim sExpessionNodeType As String
+
+        Try
+            sExpessionNodeType = oParameterNode.Attributes.GetNamedItem("type").InnerText()
+        Catch
+            sExpessionNodeType = "literal"
+
+        Finally
+            If sExpessionNodeType = "xpath" Then
+                Try
+                    xmlNodeResult = (Me.XMLElement.SelectSingleNode(oParameterNode.InnerText))
+                Catch
+                    xmlNodeResult = Nothing
+                End Try
+            Else
+                ' literal
+                xmlNodeResult = oParameterNode
+            End If
+
+        End Try
+
+        Return xmlNodeResult
+
+    End Function
+
+
+    Public Function getMethodParameterNode(ByVal sParameterName As String, ByVal bRequired As Boolean) As Xml.XmlNode
+        Dim oParameterNode As Xml.XmlNode
+
+        oParameterNode = Me.method.SelectSingleNode(sParameterName)
+
+        If oParameterNode Is Nothing Then
+            If bRequired Then
+                Throw New Exception("Required method parameter """ + sParameterName + """ for method """ + methodName + """ is missing")
+            Else
+                Return Nothing
+            End If
+        End If
+
+        Return getMethodParameterNode(oParameterNode)
+
+    End Function
+
+    Public Function getMethodParameterNodeList(ByVal oParameterNode As Xml.XmlNode) As Xml.XmlNodeList
+        Dim xmlNodeResult As Xml.XmlNodeList
+        Dim sExpessionNodeType As String
+
+        Try
+            sExpessionNodeType = oParameterNode.Attributes.GetNamedItem("type").InnerText()
+        Catch
+            sExpessionNodeType = "literal"
+
+        Finally
+            If sExpessionNodeType = "xpath" Then
+                Try
+                    xmlNodeResult = (Me.XMLElement.SelectNodes(oParameterNode.InnerText))
+                Catch
+                    xmlNodeResult = Nothing
+                End Try
+            Else
+                ' literal
+                Throw New Exception("Method parameter '" & oParameterNode.Name & "' must be type=""xpath""")
+
+            End If
+
+        End Try
+
+        Return xmlNodeResult
+
+    End Function
+
+    Public Function getMethodParameterNodeList(ByVal sParameterName As String, ByVal bRequired As Boolean) As Xml.XmlNodeList
+        Dim oParameterNode As Xml.XmlNode
+
+        oParameterNode = Me.method.SelectSingleNode(sParameterName)
+
+        If oParameterNode Is Nothing Then
+            If bRequired Then
+                Throw New Exception("Required method parameter """ + sParameterName + """ for method """ + methodName + """ is missing")
+            Else
+                Return Nothing
+            End If
+        End If
+
+        Return getMethodParameterNodeList(oParameterNode)
+
+    End Function
+
+    Public Function getMethodParameterType(ByVal sParameterName As String) As String
+        Dim oParameterNode As Xml.XmlNode
+
+        oParameterNode = Me.method.SelectSingleNode(sParameterName)
+        Try
+            Return oParameterNode.Attributes.GetNamedItem("type").InnerText()
+        Catch
+            Return "literal"
+        End Try
+
+
+    End Function
+
+    Public Property properties() As Xml.XmlNode
+        Get
+            Return getChildNode(component, "properties")
+        End Get
+
+        Set(ByVal Value As Xml.XmlNode)
+            setChildNode(component, Value)
+        End Set
+    End Property
+
+    Public Property body() As Xml.XmlNode
+        Get
+            Return getChildNode(mxmlComDoc, "body")
+        End Get
+
+        Set(ByVal Value As Xml.XmlNode)
+            setChildNode(mxmlComDoc, Value)
+        End Set
+    End Property
+
+    Public Function getBodySubDocument(ByVal SubNodePath As String) As Xml.XmlNode
+        Dim nodeSubDocument As Xml.XmlNode
+
+        Try 'Getting the method node
+            nodeSubDocument = body.SelectSingleNode(SubNodePath)
+        Catch e As Exception 'Could not find the method node then just return a new method node
+            Throw New Exception("Document body sub document could not be located: " + e.Message)
+            'nodeSubDocument = mxmlComDoc.OwnerDocument.CreateNode(Xml.XmlNodeType.Element, "", SubDocument, "")
+        End Try
+
+        Return nodeSubDocument
+    End Function
+
+    Public Function createBodySubDocument(ByVal SubNodePath As String) As Xml.XmlNode
+        Dim nodeSubDocument As Xml.XmlNode
+        Dim xpathArray As String()
+        Dim i As Integer
+        Dim xmlNodeFrom As Xml.XmlNode
+
+        nodeSubDocument = body.SelectSingleNode(SubNodePath)
+        If Not nodeSubDocument Is Nothing Then
+            Throw New Exception("Cannot create sub document " & SubNodePath & ". xPath already exixts.")
+        End If
+
+        xpathArray = SubNodePath.Split(CType("/", Char))
+        xmlNodeFrom = body
+        For i = 0 To UBound(xpathArray)
+            xmlNodeFrom = getChildNode(xmlNodeFrom, xpathArray(i))
+        Next
+        Return xmlNodeFrom
+
+    End Function
+
+    ' If body sub node exists, replaces it
+
+    Public Function appendBodySubDocument(ByVal SubNodeName As String, ByVal bPersist As Boolean) As Xml.XmlNode
+        Dim oSubDoc As Xml.XmlNode
+
+        Try
+            oSubDoc = body.SelectSingleNode(SubNodeName)
+            If oSubDoc Is Nothing Then
+                ' add it
+                oSubDoc = body.AppendChild(mxmlComDoc.OwnerDocument.CreateElement(SubNodeName))
+                If bPersist = Nothing Then
+                    ' Default for a new sub doc = true
+                    bPersist = True
+                End If
+                getAttribute(oSubDoc, "persist").InnerText = bPersist.ToString
+                Return oSubDoc
+            Else
+                ' replace it
+                Dim xmlNewNode As Xml.XmlNode = mxmlComDoc.OwnerDocument.CreateElement(SubNodeName)
+                body.ReplaceChild(xmlNewNode, oSubDoc)
+                If bPersist <> Nothing Then
+                    getAttribute(xmlNewNode, "persist").InnerText = bPersist.ToString
+                End If
+                Return xmlNewNode
+            End If
+
+        Catch e As Exception
+            System.Diagnostics.Debug.Assert(True, e.Message)
+            Throw e
+        End Try
+    End Function
+
+    Public Function appendBodySubDocument(ByVal SubNodeName As String, ByVal bPersist As Boolean, ByVal sInnerXML As String) As Xml.XmlNode
+        Dim oXMLelem As Xml.XmlNode
+
+        oXMLelem = appendBodySubDocument(SubNodeName, bPersist)
+	'Start of adding of IR 19090058 for A608
+	'START of IR 19090058 (XML Injection)
+        'oXMLelem.InnerXml = sInnerXML
+
+        Dim cdataoXMLelem As XCData = New XCData(sInnerXML)
+        oXMLelem.InnerXml = cdataoXMLelem.Value
+
+        'End of IR 19090058 (XML Injection)
+	'End of adding of IR 19090058 for A608
+    End Function
+
+    Public Function appendBodySubDocument(ByVal SubDocument As Xml.XmlNode, ByVal bPersist As Boolean) As Xml.XmlNode
+        Dim oSubDoc As Xml.XmlNode
+
+        Try
+            'START OF IR 24030083 (XPath Injection)
+            Dim XssValidate As Owasp.Esapi.Encoder = New Owasp.Esapi.Encoder()
+            'oSubDoc = body.SelectSingleNode(SubDocument.Name())
+            oSubDoc = body.SelectSingleNode(XssValidate.Canonicalize(SubDocument.Name()))
+            'END OF IR 24030083 (XPath Injection) 
+            If oSubDoc Is Nothing Then
+                ' add it
+                oSubDoc = body.AppendChild(mxmlComDoc.OwnerDocument.ImportNode(SubDocument, True))
+                If bPersist = Nothing Then
+                    ' Default for a new sub doc = true
+                    bPersist = True
+                End If
+                getAttribute(oSubDoc, "persist").InnerText = bPersist.ToString
+                Return oSubDoc
+            Else
+                ' replace it
+                Dim xmlNewNode As Xml.XmlNode = mxmlComDoc.OwnerDocument.ImportNode(SubDocument, True)
+                body.ReplaceChild(xmlNewNode, oSubDoc)
+                If bPersist <> Nothing Then
+                    getAttribute(xmlNewNode, "persist").InnerText = bPersist.ToString
+                End If
+                Return xmlNewNode
+            End If
+
+        Catch e As Exception
+            System.Diagnostics.Debug.Assert(True, e.Message)
+            Throw e
+        End Try
+    End Function
+
+    Public Function appendBodySubDocument(ByVal SubDocument As Xml.XmlNode) As Xml.XmlNode
+
+        Return appendBodySubDocument(SubDocument, Nothing)
+
+    End Function
+
+
+    Public Function setBodySubDocumentNodeValue(ByVal SubDocNodeName As String, ByVal NodeName As String, ByVal Value As String) As Xml.XmlNode
+        Dim oNode As Xml.XmlNode
+        Dim oSubDocNode As Xml.XmlNode
+
+        Try
+
+            oSubDocNode = body.SelectSingleNode(SubDocNodeName)
+            If oSubDocNode Is Nothing Then
+                oSubDocNode = mxmlComDoc.OwnerDocument.CreateElement(SubDocNodeName)
+                oSubDocNode = appendBodySubDocument(oSubDocNode)
+            End If
+            oNode = getChildNode(oSubDocNode, NodeName)
+            oNode.InnerText = Value
+            oSubDocNode.AppendChild(oNode)
+            Return oNode
+
+        Catch e As Exception
+            System.Diagnostics.Debug.Assert(True, e.Message)
+            Throw e
+        End Try
+    End Function
+
+    Public Function createReturnDocument() As CFNSComponentDocument
+        Dim oReturnDocument As New CFNSComponentDocument()
+
+        ' Copy header
+        oReturnDocument.setHeader(Me.header)
+
+        ' Copy persistant nodes to new document
+        Dim oBodyNodes As Xml.XmlNodeList
+        Dim oBodyNode As Xml.XmlNode
+
+        oBodyNodes = Me.body.SelectNodes("*[@persist='True']")
+
+        For Each oBodyNode In oBodyNodes
+            oReturnDocument.body.AppendChild(oReturnDocument.OwnerDocument.ImportNode(oBodyNode, True))
+        Next
+        Return oReturnDocument
+
+    End Function
+
+    Public Property returnStack() As Xml.XmlNode
+        Get
+            Return getChildNode(header, "returnStack")
+        End Get
+
+        Set(ByVal Value As Xml.XmlNode)
+            setChildNode(header, Value)
+        End Set
+    End Property
+
+    Public Sub pushReturnStack(ByVal nodeReturnNode As Xml.XmlNode)
+
+        returnStack.AppendChild(mxmlComDoc.OwnerDocument.ImportNode(nodeReturnNode, True))
+
+    End Sub
+
+    Public Function popReturnStack() As Xml.XmlNode
+
+        If returnStack.LastChild Is Nothing Then
+            Return Nothing
+        Else
+            Return returnStack.RemoveChild(returnStack.LastChild)
+        End If
+
+    End Function
+
+
+    Private Function getAttribute(ByVal nodeFrom As Xml.XmlNode, ByVal attributeName As String) As Xml.XmlNode
+        Dim xmlAttributeNode As Xml.XmlNode
+
+        xmlAttributeNode = nodeFrom.Attributes.GetNamedItem(attributeName)
+
+        If xmlAttributeNode Is Nothing Then
+            xmlAttributeNode = mxmlComDoc.OwnerDocument.CreateNode(Xml.XmlNodeType.Attribute, "", attributeName, "")
+            xmlAttributeNode = nodeFrom.Attributes.SetNamedItem(xmlAttributeNode)
+        End If
+
+        Return xmlAttributeNode
+
+    End Function
+
+    Private Function getChildNode(ByVal nodeFrom As Xml.XmlNode, ByVal nodeName As String) As Xml.XmlNode
+        Dim nodeChildNode As Xml.XmlNode
+
+        Try 'Getting the flow node
+            'START OF IR 24030083 (SQL Injection)
+            Dim XssValidate As Owasp.Esapi.Encoder = New Owasp.Esapi.Encoder()
+            nodeName = XssValidate.Canonicalize(nodeName)
+            'END OF IR 24030083 (SQL Injection) 
+            nodeChildNode = nodeFrom.SelectSingleNode(nodeName)
+
+            If IsNothing(nodeChildNode) Then
+                nodeChildNode = mxmlComDoc.OwnerDocument.CreateNode(Xml.XmlNodeType.Element, "", nodeName, "")
+                nodeChildNode = setChildNode(nodeFrom, nodeChildNode)
+            End If
+        Catch e As Exception 'Could not find the flow node then just return a new flow node
+            Throw New Exception("getChildNode: " + e.Message)
+        End Try
+
+        Return nodeChildNode
+    End Function
+
+    Private Function setChildNode(ByVal nodeFrom As Xml.XmlNode, ByVal nodeChild As Xml.XmlNode) As Xml.XmlNode
+
+        Dim nodeChildNode As Xml.XmlNode
+
+        Try 'Getting the flow node
+            'START OF IR 24030083 (SQL Injection)
+            Dim XssValidate As Owasp.Esapi.Encoder = New Owasp.Esapi.Encoder()
+            'nodeChildNode = nodeFrom.SelectSingleNode(nodeChild.Name)
+            nodeChildNode = nodeFrom.SelectSingleNode(XssValidate.Canonicalize(nodeChild.Name))
+            'END OF IR 24030083 (SQL Injection)
+
+            Try 'replacing the flow node with new flow node
+                If IsNothing(nodeChildNode) Then
+                    Return nodeFrom.AppendChild(mxmlComDoc.OwnerDocument.ImportNode(nodeChild, True))
+                Else
+                    Return nodeFrom.ReplaceChild(mxmlComDoc.OwnerDocument.ImportNode(nodeChild, True), nodeChildNode)
+                End If
+            Catch e As Exception
+                System.Diagnostics.Debug.Assert(True, e.Message)
+                Throw e
+            End Try
+        Catch e As Exception 'Could not find flow node then just add the new flow node
+        End Try
+
+    End Function
+
+End Class
+Public Class CFNSComponentDocuments
+    Inherits Xml.XmlDocument
+
+
+    Public Function ComponentDocument(ByVal index As Integer) As CFNSComponentDocument
+
+        Dim comDoc As CFNSComponentDocument
+        Dim comDocNodes As Xml.XmlNodeList
+
+        comDocNodes = Me.SelectNodes("componentDocuments/componentDocument")
+        comDoc = New CFNSComponentDocument(CType(comDocNodes.Item(index), Xml.XmlElement))
+
+        Return comDoc
+
+    End Function
+
+    'Public Function CreateComponentDocument() As CFNSComponentDocument
+
+    '    Dim comDoc As New CFNSComponentDocument()
+    '    'Me.AddComponentDocument(comDoc)
+    '    Return comDoc
+
+    'End Function
+
+    Public Function AddComponentDocument(ByVal ComponentDocument As CFNSComponentDocument) As CFNSComponentDocument
+
+        Dim xmlElement As Xml.XmlElement
+        xmlElement = CType(Me.SelectSingleNode("componentDocuments").AppendChild(Me.ImportNode(ComponentDocument.XMLElement, True)), Xml.XmlElement)
+        Dim NewDoc As New CFNSComponentDocument(xmlElement)
+        Return NewDoc
+
+    End Function
+
+    Public Function createReturnDocuments() As CFNSComponentDocuments
+
+        Dim oReturnDocuments As New CFNSComponentDocuments()
+        Dim oCurrentComponentDocument As CFNSComponentDocument
+        Dim i As Integer
+
+        For i = 0 To ComponentDocumentCount - 1
+            oCurrentComponentDocument = Me.ComponentDocument(i)
+            oReturnDocuments.AddComponentDocument(oCurrentComponentDocument.createReturnDocument)
+        Next
+        Return oReturnDocuments
+
+    End Function
+
+    Public ReadOnly Property ComponentDocumentCount() As Integer
+        Get
+            Dim comDocNodes As Xml.XmlNodeList
+
+            comDocNodes = Me.SelectNodes("componentDocuments/componentDocument")
+            Return comDocNodes.Count
+        End Get
+    End Property
+
+
+    Public Sub New()
+        MyBase.New()
+        Me.LoadXml("<componentDocuments/>")
+    End Sub
+
+    Public Sub New(ByVal ComponentDocument As CFNSComponentDocument)
+        Me.New()
+        AddComponentDocument(ComponentDocument)
+    End Sub
+
+    'Public Sub Load()
+
+End Class
+Public Class CFNSComponentProperties
+
+    Private mXMLComponentProperties As New Xml.XmlDocument()
+    Private mFilename As String
+
+    Public Sub Load(ByVal filename As String)
+
+        mFilename = filename
+        mXMLComponentProperties.Load(filename)
+
+    End Sub
+
+    Public ReadOnly Property Filename() As String
+        Get
+            Return mFilename
+        End Get
+    End Property
+
+    'Private Sub Load()
+
+    '    Dim sFilename As String
+    '    Dim sPath As String
+    '    Dim sSep As String = System.IO.Path.DirectorySeparatorChar
+    '    sPath = System.IO.Path.GetFullPath(System.Reflection.Assembly.GetExecutingAssembly.Location)
+    '    sPath = Left(sPath, Len(sPath) - 4)
+    '    sFilename = sPath + sSep + "xml" + sSep + "settings" + sSep + "FNSComponentProperties.xml"
+    '    mXMLComponentProperties.Load(sFilename)
+
+    'End Sub
+
+    Public Function getComponentProperty(ByVal componentID As String, ByVal propertyNodeName As String) As String
+        Dim nodeProperties As Xml.XmlNode
+
+        Try
+            nodeProperties = getComponentProperties(componentID)
+            Return nodeProperties.SelectSingleNode(propertyNodeName).InnerText()
+        Catch e As Exception
+            Return ""
+        End Try
+    End Function
+
+    Public Function getComponentProperties(ByVal componentID As String) As Xml.XmlNode
+
+        'Dim nodeComponent As Xml.XmlNode
+        Dim nodeComponentProperties As Xml.XmlNode
+
+        Try
+            nodeComponentProperties = mXMLComponentProperties.SelectSingleNode("componentProperties/component[@ID='" & componentID & "']/properties")
+            'nodeComponentProperties = nodeComponent.FirstChild
+        Catch e As Exception
+            Return Nothing
+            'System.Diagnostics.Debug.Assert(False, e.Message)
+        End Try
+
+        Return nodeComponentProperties
+    End Function
+
+End Class
+
+
+
