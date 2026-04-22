@@ -1,0 +1,26 @@
+public string Canonicalize(string input)
+{
+    StringBuilder stringBuilder = new StringBuilder();
+    EncodedStringReader encodedStringReader = new EncodedStringReader(input);
+    while (encodedStringReader.HasNext())
+    {
+        EncodedCharacter nextCharacter = encodedStringReader.NextCharacter;
+        if (nextCharacter != null)
+        {
+            stringBuilder.Append(nextCharacter.Unencoded);
+        }
+    }
+
+    return stringBuilder.ToString();
+}
+ public EncodedStringReader(string input)
+ {
+     if (input == null)
+     {
+         this.input = "";
+     }
+     else
+     {
+         this.input = input;
+     }
+ }
