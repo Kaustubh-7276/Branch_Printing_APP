@@ -1,3 +1,33 @@
+Enum IOILines
+    Line0 = 0
+    Line1 = 5
+    Line2 = 15
+    Line3 = 25
+    Line4 = 50
+    Line5 = 70
+
+    Line6 = 90
+    Line7 = 110
+    Line8 = 125
+    Line9 = 140
+    Line10 = 160
+
+    Line11 = 170
+    Line12 = 190
+    Line13 = 210
+    Line14 = 230
+    Line15 = 255
+
+    Line16 = 295
+    Line17 = 315
+    Line18 = 335
+    Line19 = 365
+End Enum
+
+Enum IOIPageSettings
+    LeftMargin = 5
+    Top = 0
+End Enum
 Friend Class TCSRTFPrinter
 
     Private oLogger As FlowDistributorTypes.CFNSEventLogger
