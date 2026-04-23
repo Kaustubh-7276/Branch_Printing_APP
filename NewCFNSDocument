@@ -1,0 +1,485 @@
+using System.Text;
+using System.Xml;
+using System.Xml.Linq;
+using System.Xml.Schema;
+
+namespace Branch_Printing_APP.CommonUtil
+{
+    public class CFNSComponentDocument
+    {
+        private XmlElement mxmlComDoc;
+
+        // =========================
+        // CONSTRUCTORS
+        // =========================
+        public CFNSComponentDocument()
+        {
+            XmlDocument xmlTempDoc = new XmlDocument();
+
+            byte[] xmlBytes = Encoding.Unicode.GetBytes(
+              "<componentDocument version='2.0'><header><component><method/><properties/></component></header><body/></componentDocument>"
+            );
+
+            using (MemoryStream ms = new MemoryStream(xmlBytes))
+            {
+                XmlReaderSettings settings = new XmlReaderSettings
+                {
+                    DtdProcessing = DtdProcessing.Ignore,
+                    XmlResolver = null,
+                    ValidationType = ValidationType.Schema,
+                    Schemas = new XmlSchemaSet(),
+                    MaxCharactersFromEntities = 1024,
+                    IgnoreComments = true
+                };
+
+                using (XmlReader reader = XmlReader.Create(ms, settings))
+                {
+                    xmlTempDoc.Load(reader);
+                }
+            }
+
+            mxmlComDoc = xmlTempDoc.DocumentElement;
+        }
+
+        public CFNSComponentDocument(XmlElement element)
+        {
+            mxmlComDoc = element;
+        }
+
+        public XmlDocument OwnerDocument => mxmlComDoc.OwnerDocument;
+        public XmlElement XMLElement => mxmlComDoc;
+
+        // =========================
+        // CANONICALIZE (YOUR VERSION)
+        // =========================
+
+        //public string Canonicalize(string input)
+        //{
+        //    StringBuilder stringBuilder = new StringBuilder();
+        //    EncodedStringReader encodedStringReader = new EncodedStringReader(input);
+        //    while (encodedStringReader.HasNext())
+        //    {
+        //        EncodedCharacter nextCharacter = encodedStringReader.NextCharacter;
+        //        if (nextCharacter != null)
+        //        {
+        //            stringBuilder.Append(nextCharacter.Unencoded);
+        //        }
+        //    }
+
+        //    return stringBuilder.ToString();
+        //}
+
+
+        // =========================
+        // HEADER / FLOW / COMPONENT
+        // =========================
+        public XmlNode header => getChildNode(mxmlComDoc, "header");
+
+        public XmlNode index
+        {
+            get => getChildNode(header, "index");
+            set => setChildNode(header, value);
+        }
+
+        public string indexValue
+        {
+            get => index.InnerText;
+            set => index.InnerText = value;
+        }
+
+        public XmlNode flow
+        {
+            get => getChildNode(header, "flow");
+            set => setChildNode(header, value);
+        }
+
+        public string flowID
+        {
+            get => getAttribute(flow, "ID").InnerText;
+            set => getAttribute(flow, "ID").InnerText = value;
+        }
+
+        public string flowNodeID
+        {
+            get => getAttribute(flow, "nodeID").InnerText;
+            set => getAttribute(flow, "nodeID").InnerText = value;
+        }
+
+        public XmlNode component
+        {
+            get => getChildNode(header, "component");
+            set => setChildNode(header, value);
+        }
+
+        public XmlNode method
+        {
+            get => getChildNode(component, "method");
+            set => setChildNode(component, value);
+        }
+
+        public XmlNode properties
+        {
+            get => getChildNode(component, "properties");
+            set => setChildNode(component, value);
+        }
+
+        public XmlNode body
+        {
+            get => getChildNode(mxmlComDoc, "body");
+            set => setChildNode(mxmlComDoc, value);
+        }
+
+        // =========================
+        // METHOD PARAMETERS (FULL)
+        // =========================
+        public string getMethodParameterText(string name, bool required)
+        {
+            XmlNode node = getMethodParameterNode(name, required);
+            try
+            {
+                return node.FirstChild.NodeType == XmlNodeType.Text
+                  ? node.InnerText
+                  : node.InnerXml;
+            }
+            catch { return ""; }
+        }
+
+        public string getMethodParameterText(string name)
+        {
+            return getMethodParameterText(name, false);
+        }
+
+        public string getMethodParameterText(XmlNode node)
+        {
+            XmlNode result = getMethodParameterNode(node);
+            try
+            {
+                return result.FirstChild.NodeType == XmlNodeType.Text
+                  ? result.InnerText
+                  : result.InnerXml;
+            }
+            catch { return ""; }
+        }
+
+        public XmlNode getMethodParameterNode(string name, bool required)
+        {
+            XmlNode node = method.SelectSingleNode(name);
+
+            if (node == null)
+            {
+                if (required)
+                    throw new Exception($"Required parameter '{name}' missing");
+                return null;
+            }
+
+            return getMethodParameterNode(node);
+        }
+
+        public XmlNode getMethodParameterNode(XmlNode node)
+        {
+            string type = "literal";
+
+            try { type = node.Attributes["type"].InnerText; } catch { }
+
+            if (type == "xpath")
+            {
+                try
+                {
+                    // 🔥 EXACT VB
+                    return XMLElement.SelectSingleNode(node.InnerText);
+                }
+                catch { return null; }
+            }
+
+            return node;
+        }
+
+        public XmlNodeList getMethodParameterNodeList(string name, bool required)
+        {
+            XmlNode node = method.SelectSingleNode(name);
+
+            if (node == null)
+            {
+                if (required)
+                    throw new Exception($"Required parameter '{name}' missing");
+                return null;
+            }
+
+            return getMethodParameterNodeList(node);
+        }
+
+        public XmlNodeList getMethodParameterNodeList(XmlNode node)
+        {
+            string type = "literal";
+
+            try { type = node.Attributes["type"].InnerText; } catch { }
+
+            if (type == "xpath")
+            {
+                return XMLElement.SelectNodes(node.InnerText);
+            }
+
+            throw new Exception($"Parameter '{node.Name}' must be type='xpath'");
+        }
+
+        public string getMethodParameterType(string name)
+        {
+            XmlNode node = method.SelectSingleNode(name);
+            try
+            {
+                return node.Attributes["type"].InnerText;
+            }
+            catch
+            {
+                return "literal";
+            }
+        }
+
+        // =========================
+        // BODY METHODS (FULL)
+        // =========================
+        public XmlNode appendBodySubDocument(string name, bool persist)
+        {
+            XmlNode node = body.SelectSingleNode(name);
+
+            if (node == null)
+                node = body.AppendChild(OwnerDocument.CreateElement(name));
+            else
+                node = body.ReplaceChild(OwnerDocument.CreateElement(name), node);
+
+            getAttribute(node, "persist").InnerText = persist.ToString();
+            return node;
+        }
+
+        public XmlNode appendBodySubDocument(string name, bool persist, string innerXml)
+        {
+            XmlNode node = appendBodySubDocument(name, persist);
+            node.InnerXml = new XCData(innerXml).Value;
+            return node;
+        }
+
+        public XmlNode appendBodySubDocument(XmlNode subDoc, bool persist)
+        {
+            string safeName = System.Security.SecurityElement.Escape(subDoc.Name);
+            XmlNode existing = body.SelectSingleNode(safeName);
+
+            XmlNode newNode = OwnerDocument.ImportNode(subDoc, true);
+
+            if (existing == null)
+                body.AppendChild(newNode);
+            else
+                body.ReplaceChild(newNode, existing);
+
+            getAttribute(newNode, "persist").InnerText = persist.ToString();
+            return newNode;
+        }
+
+        public XmlNode appendBodySubDocument(XmlNode subDoc)
+        {
+            return appendBodySubDocument(subDoc, true);
+        }
+
+        public CFNSComponentDocument createReturnDocument()
+        {
+            CFNSComponentDocument doc = new CFNSComponentDocument();
+            doc.setChildNode(doc.XMLElement, this.header);
+
+            XmlNodeList nodes = body.SelectNodes("*[@persist='True']");
+            foreach (XmlNode n in nodes)
+            {
+                doc.body.AppendChild(doc.OwnerDocument.ImportNode(n, true));
+            }
+
+            return doc;
+        }
+
+        // =========================
+        // RETURN STACK
+        // =========================
+        public XmlNode returnStack => getChildNode(header, "returnStack");
+
+        public void pushReturnStack(XmlNode node)
+        {
+            returnStack.AppendChild(OwnerDocument.ImportNode(node, true));
+        }
+
+        public XmlNode popReturnStack()
+        {
+            if (returnStack.LastChild == null) return null;
+            return returnStack.RemoveChild(returnStack.LastChild);
+        }
+
+        // =========================
+        // HELPERS
+        // =========================
+        private XmlNode getAttribute(XmlNode node, string name)
+        {
+            XmlNode attr = node.Attributes[name];
+
+            if (attr == null)
+            {
+                attr = OwnerDocument.CreateAttribute(name);
+                node.Attributes.SetNamedItem(attr);
+            }
+
+            return attr;
+        }
+
+        private XmlNode getChildNode(XmlNode nodeFrom, string name)
+        {
+            name = System.Security.SecurityElement.Escape(name);
+
+            XmlNode node = nodeFrom.SelectSingleNode(name);
+
+            if (node == null)
+            {
+                node = OwnerDocument.CreateElement(name);
+                nodeFrom.AppendChild(node);
+            }
+
+            return node;
+        }
+
+        private XmlNode setChildNode(XmlNode nodeFrom, XmlNode nodeChild)
+        {
+            string safeName = System.Security.SecurityElement.Escape(nodeChild.Name);
+
+            XmlNode existing = nodeFrom.SelectSingleNode(safeName);
+
+            if (existing == null)
+                return nodeFrom.AppendChild(OwnerDocument.ImportNode(nodeChild, true));
+            else
+                return nodeFrom.ReplaceChild(OwnerDocument.ImportNode(nodeChild, true), existing);
+        }
+    }
+
+    // =========================================================
+    // CFNSComponentDocuments (FULL)
+    // =========================================================
+    public class CFNSComponentDocuments : XmlDocument
+    {
+        // =========================
+        // CONSTRUCTORS
+        // =========================
+        public CFNSComponentDocuments()
+        {
+            this.LoadXml("<componentDocuments/>");
+        }
+
+        public CFNSComponentDocuments(CFNSComponentDocument doc)
+          : this()
+        {
+            AddComponentDocument(doc);
+        }
+
+        // =========================
+        // GET COMPONENT DOCUMENT
+        // =========================
+        public CFNSComponentDocument ComponentDocument(int index)
+        {
+            XmlNodeList nodes = this.SelectNodes("componentDocuments/componentDocument");
+
+            return new CFNSComponentDocument(
+              (XmlElement)nodes.Item(index)
+            );
+        }
+
+        // =========================
+        // ADD COMPONENT DOCUMENT
+        // =========================
+        public CFNSComponentDocument AddComponentDocument(CFNSComponentDocument doc)
+        {
+            XmlElement element = (XmlElement)this.SelectSingleNode("componentDocuments")
+              .AppendChild(this.ImportNode(doc.XMLElement, true));
+
+            return new CFNSComponentDocument(element);
+        }
+
+        // =========================
+        // CREATE RETURN DOCUMENTS
+        // =========================
+        public CFNSComponentDocuments createReturnDocuments()
+        {
+            CFNSComponentDocuments result = new CFNSComponentDocuments();
+
+            for (int i = 0; i < ComponentDocumentCount; i++)
+            {
+                CFNSComponentDocument current = ComponentDocument(i);
+                result.AddComponentDocument(current.createReturnDocument());
+            }
+
+            return result;
+        }
+
+        // =========================
+        // COUNT
+        // =========================
+        public int ComponentDocumentCount
+        {
+            get
+            {
+                XmlNodeList nodes = this.SelectNodes("componentDocuments/componentDocument");
+                return nodes.Count;
+            }
+        }
+    }
+    public class CFNSComponentProperties
+    {
+        private XmlDocument mXMLComponentProperties = new XmlDocument();
+        private string mFilename;
+
+        // =========================
+        // LOAD
+        // =========================
+        public void Load(string filename)
+        {
+            mFilename = filename;
+            mXMLComponentProperties.Load(filename);
+        }
+
+        public string Filename
+        {
+            get { return mFilename; }
+        }
+
+        // =========================
+        // GET SINGLE PROPERTY
+        // =========================
+        public string getComponentProperty(string componentID, string propertyNodeName)
+        {
+            XmlNode nodeProperties;
+
+            try
+            {
+                nodeProperties = getComponentProperties(componentID);
+                return nodeProperties.SelectSingleNode(propertyNodeName).InnerText;
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        // =========================
+        // GET PROPERTIES NODE
+        // =========================
+        public XmlNode getComponentProperties(string componentID)
+        {
+            XmlNode nodeComponentProperties;
+
+            try
+            {
+                nodeComponentProperties =
+                  mXMLComponentProperties.SelectSingleNode(
+                    "componentProperties/component[@ID='" + componentID + "']/properties"
+                  );
+            }
+            catch
+            {
+                return null;
+            }
+
+            return nodeComponentProperties;
+        }
+    }
+}
