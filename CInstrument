@@ -1,0 +1,513 @@
+Imports System.Drawing.Printing
+Imports System.Drawing
+
+'*****************************************************************************************
+'*****************************************************************************************
+'   CLASS NAME: CInstrument
+'   DESCRIPTION: Created for prinitng IOI instruments. The class encapsulates functionality
+'                required for IOIPrinting and exposes methods for printing and computation of
+'                IOI related values.
+'   AUTHOR:      Amal Savle
+'   CREATED ON:  02 May 2005
+'*****************************************************************************************
+'   MODIFICATION HISTORY: 
+'*****************************************************************************************
+
+Public Class CInstrument
+    Enum IntrumentTypes
+        DD = 1 ' Demand Draft
+        BC = 2 ' Banker's Cheque
+        GC = 3 ' Gift Cheque
+    End Enum
+
+
+    Private m_InstrumentType As Integer ' as one of Enum InstrumentTypes
+    Private m_InstrumentWidth As Integer ' Width of the instrument in points
+    Private m_InstrumentHeight As Integer ' Height of the instrument in points
+    Private m_InstrumentItems As CInstrumentItem() ' Collection of Instrument Items
+    Private WithEvents m_pdoc As New PrintDocument()
+
+
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: New
+    '   DESCRIPTION: Constructor for the class.
+    '   SCOPE:       Public
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. nInstType: Integer: Used to indicate the type of Instrument that is being 
+    '               created. Value not used as of 02 May 2005. May be used in the future.
+    '               2. nInstWidth: Integer:Defining the printable width of the instrument.Value not used 
+    '               as of 02 May 2005. May be used in the future.                  
+    '               3. nInstHeight: Integer: Defining the printable height of the instrument.Value not used 
+    '               as of 02 May 2005. May be used in the future.
+    '               4. sPrinterName: String: Name of the Printer
+    '*****************************************************************************************
+    Public Sub New(ByVal nInstType As Integer, ByVal nInstWidth As Integer, ByVal nInstHeight As Integer, ByVal sPrinterName As String)
+        m_InstrumentType = nInstType
+        m_InstrumentWidth = nInstWidth
+        m_InstrumentHeight = nInstHeight
+        m_pdoc.PrinterSettings.PrinterName = sPrinterName
+    End Sub
+
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: PrintInstrument
+    '   DESCRIPTION: Exposed method for initiating an Instrument printing process
+    '   SCOPE:       Public
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. InstItems: CInstrumentItem(): Takes an array of CInstrumentItem objects
+    '*****************************************************************************************
+    Public Sub PrintInstrument(ByVal InstItems As CInstrumentItem())
+	'Start of IR 71996
+	System.Threading.Thread.Sleep(1000)
+     'End of IR 71996
+        m_InstrumentItems = InstItems
+        m_pdoc.Print()
+    End Sub
+
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: pdoc_PrintPage
+    '   DESCRIPTION: Event handler for handling the PrintPage event of pdoc(pdoc is an object of type PrintDocument)
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. sender: Event Handler parameter
+    '               2. e: Event handler parameter
+    '*****************************************************************************************
+    Private Sub pdoc_PrintPage(ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs) Handles m_pdoc.PrintPage
+        ' Declare a variable to hold the position of the last printed char. Declare
+        ' as static so that subsequent PrintPage events can reference it.
+        Static intCurrentChar As Int32
+
+        Dim intPrintAreaHeight, intPrintAreaWidth, marginLeft, marginTop As Int32
+        Dim IOIPaperSize As PaperSize
+
+        IOIPaperSize = New PaperSize("SBI IOI Paper Size", "800", "350")
+
+        With m_pdoc.DefaultPageSettings
+            ' Initialize local variables that contain the bounds of the printing 
+            ' area rectangle.
+            '.PrinterSettings.DefaultPageSettings.PaperSize = IOIPaperSize
+            '.PaperSize = IOIPaperSize
+            intPrintAreaHeight = .PaperSize.Height - .Margins.Top - .Margins.Bottom
+            intPrintAreaWidth = .PaperSize.Width - .Margins.Left - .Margins.Right
+            
+            ' Initialize local variables to hold margin values that will serve
+            ' as the X and Y coordinates for the upper left corner of the printing 
+            ' area rectangle.
+            marginLeft = .Margins.Left ' X coordinate
+            marginTop = .Margins.Top ' Y coordinate
+        End With
+            
+        ' If the user selected Landscape mode, swap the printing area height 
+        ' and width.
+        If m_pdoc.DefaultPageSettings.Landscape Then
+            Dim intTemp As Int32
+            intTemp = intPrintAreaHeight
+            intPrintAreaHeight = intPrintAreaWidth
+            intPrintAreaWidth = intTemp
+        End If
+
+        ' Calculate the total number of lines in the document based on the height of
+        ' the printing area and the height of the font.
+        ' Initialize the rectangle structure that defines the printing area.
+        Dim rectPrintingArea As New RectangleF(marginLeft, marginTop, intPrintAreaWidth, intPrintAreaHeight)
+
+        Dim IItem As CInstrumentItem
+        For Each IItem In m_InstrumentItems
+            PrintInstrumentItem(IItem, sender, e)
+        Next
+
+        ' For printing the vertical box
+        'PrintVerticalBox(sender, e)
+        e.HasMorePages = False
+        ' You must explicitly reset intCurrentChar as it is static.
+        intCurrentChar = 0
+    End Sub
+
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: PrintInstrumentItem
+    '   DESCRIPTION: Used for processing an individual CInstrumentItem object
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. InstItem: CInstrumentItem : The CInstrumentItem object that needs to be processed for printing
+    '               2. sender: pdoc_PrintPage eventhandler parameter. Not used currently. May be used in the future
+    '               3. e: Handle needed for printing 
+    '*****************************************************************************************
+    Private Sub PrintInstrumentItem(ByVal InstItem As CInstrumentItem, ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs)
+        ' If the item requires boxes then print boxes
+        If InstItem.isInBox Then
+            PrintBoxedItem(InstItem, sender, e)
+        Else ' else print the item directly
+            PrintUnboxedItem(InstItem, sender, e)
+        End If
+    End Sub
+
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: PrintUnboxedItem
+    '   DESCRIPTION: Sub to print items directly without any boxes
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. IItem: CInstrumentItem : The CInstrumentItem object that needs to be processed for printing
+    '               2. sender: pdoc_PrintPage eventhandler parameter. Not used currently. May be used in the future
+    '               3. e: Handle needed for printing 
+    '*****************************************************************************************
+    Private Sub PrintUnboxedItem(ByVal IItem As CInstrumentItem, ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs)
+        e.Graphics.DrawString(IItem.Data, IItem.ItemFont, Brushes.Black, IItem.xPos, IItem.yPos)
+    End Sub
+
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: PrintBoxedItem
+    '   DESCRIPTION: Sub to print items in boxes
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. IItem: CInstrumentItem : The CInstrumentItem object that needs to be processed for printing
+    '               2. sender: pdoc_PrintPage eventhandler parameter. Not used currently. May be used in the future
+    '               3. e: Handle needed for printing 
+    '*****************************************************************************************
+
+    Private Sub PrintBoxedItem(ByVal IItem As CInstrumentItem, ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs)
+        Dim strValues As String()
+        ' If item has digits and every digit needs to be in a separate box then
+        If IItem.isDigit Then
+            'Print the digits in individual boxes
+            PrintDigits(IItem, sender, e)
+'Start of ir 72595
+        ElseIf IItem.isNoBoxLine Then
+            PrintBoxedWithoutLines(IItem, sender, e)
+'end of ir 72595
+        Else ' If item just has an entire string to be boxed then
+            ' If its an amount value to be converted to string then convert numbers to strings and print them in a rectangle
+            If IItem.isAmount = True Then
+                PrintAmountString(IItem, sender, e)
+            Else ' If its a regular string to be printed
+                ReDim strValues(0)
+                strValues(0) = IItem.Data
+                DrawBoxedString(sender, e, 1, IItem.xPos, IItem.yPos, IItem.BoxWidth, IItem.BoxHeight, strValues, IItem.ItemFont, IItem.xOffset, IItem.yOffset)
+            End If
+        End If
+    End Sub
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: PrintDigits
+    '   DESCRIPTION: Sub to print items containing numeric data and requiring every digit to be printed in a separate box
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. IItem: CInstrumentItem : The CInstrumentItem object that needs to be processed for printing
+    '               2. sender: pdoc_PrintPage eventhandler parameter. Not used currently. May be used in the future
+    '               3. e: Handle needed for printing 
+    '*****************************************************************************************
+
+    Private Sub PrintDigits(ByVal IItem As CInstrumentItem, ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs)
+        Dim chrValues As Char()
+        Dim strValues As String()
+        Dim i As Integer
+        'Split the digits into a char array and then into a string array
+        chrValues = IItem.Data.ToCharArray
+        If IsArray(chrValues) Then
+            ReDim strValues(UBound(chrValues))
+            For i = LBound(chrValues) To UBound(chrValues)
+                strValues(i) = chrValues(i).ToString()
+            Next
+            DrawBoxedString(sender, e, (UBound(chrValues) + 1), IItem.xPos, IItem.yPos, IItem.BoxWidth, IItem.BoxHeight, strValues, IItem.ItemFont, IItem.xOffset, IItem.yOffset)
+        End If
+
+    End Sub
+
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: PrintAmountString
+    '   DESCRIPTION: ' Sub to convert rupee amount digits to string and print them in boxes
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. IItem: CInstrumentItem : The CInstrumentItem object that needs to be processed for printing
+    '               2. sender: pdoc_PrintPage eventhandler parameter. Not used currently. May be used in the future
+    '               3. e: Handle needed for printing 
+    '*****************************************************************************************
+    Private Sub PrintAmountString(ByVal IItem As CInstrumentItem, ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs)
+        Dim chrValues As Char()
+        Dim strNumeric As String()
+        Dim strWeights As String()
+        Dim i As Integer
+        chrValues = IItem.Data.ToCharArray
+        If IsArray(chrValues) Then
+            ReDim strNumeric(UBound(chrValues))
+            ReDim strWeights(UBound(chrValues))
+            For i = LBound(chrValues) To UBound(chrValues)
+                'Get the string values for the digits
+                strNumeric(i) = GetStringForDigit(chrValues(i))
+                'Get the weights of the individual digits
+                strWeights(i) = GetWeightForDigit(UBound(chrValues) - i)
+            Next
+            'Draw the first row of boxes for the string values of the digits
+            DrawBoxedString(sender, e, UBound(chrValues) + 1, IItem.xPos, IItem.yPos, IItem.BoxWidth, IItem.BoxHeight, strNumeric, IItem.ItemFont, IItem.xOffset, IItem.yOffset)
+
+            'Draw the first row of boxes for the weights of the digits
+            DrawBoxedString(sender, e, UBound(chrValues) + 1, IItem.xPos, (IItem.yPos + IItem.BoxHeight), IItem.BoxWidth, IItem.BoxHeight, strWeights, IItem.ItemFont, IItem.xOffset, IItem.yOffset)
+        End If
+    End Sub
+
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: GetStringForDigit
+    '   DESCRIPTION: Funtion that returns the string for a digit 
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. chrN : Char : The Char representation of the digit to be converted
+    '   RETURN TYPE: String: The string representation of a digit
+    '*****************************************************************************************
+    Private Function GetStringForDigit(ByVal chrN As Char) As String
+        Select Case chrN
+
+            Case "0"
+                GetStringForDigit = "ZERO"
+            Case "1"
+                GetStringForDigit = "ONE"
+            Case "2"
+                GetStringForDigit = "TWO"
+            Case "3"
+                GetStringForDigit = "THREE"
+            Case "4"
+                GetStringForDigit = "FOUR"
+            Case "5"
+                GetStringForDigit = "FIVE"
+            Case "6"
+                GetStringForDigit = "SIX"
+            Case "7"
+                GetStringForDigit = "SEVEN"
+            Case "8"
+                GetStringForDigit = "EIGHT"
+            Case "9"
+                GetStringForDigit = "NINE"
+        End Select
+    End Function
+
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: GetWeightForDigit
+    '   DESCRIPTION: Function that returns the weight for a number based on the position provided
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. nPos : Integer : The weight(position) of a digit in a multidigit numeric value
+    '   RETURN TYPE: String: The string representation of the weight of the digit
+    '*****************************************************************************************
+    Private Function GetWeightForDigit(ByVal nPos As Integer) As String
+        Select Case nPos
+            Case 0
+                GetWeightForDigit = "UNITS"
+            Case 1
+                GetWeightForDigit = "TENS"
+            Case 2
+                GetWeightForDigit = "HUNDS"
+            Case 3
+                GetWeightForDigit = "THDS"
+            Case 4
+                GetWeightForDigit = "T'THDS"
+            Case 5
+                GetWeightForDigit = "LAKHS"
+            Case 6
+                GetWeightForDigit = "T'LAKHS"
+            Case 7
+                GetWeightForDigit = "CRORES"
+            Case 8
+                GetWeightForDigit = "T'CRRS"
+            Case 9
+                GetWeightForDigit = "H'CRRS"
+        End Select
+    End Function
+
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: DrawBoxedString
+    '   DESCRIPTION: Draws a series of boxes and writes strings into the boxes
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. sender: pdoc_PrintPage eventhandler parameter. Not used currently. May be used in the future
+    '               2. e: Handle needed for printing 
+    '               3. x  : Integer : The x position of the box
+    '               4. y  : Integer: The y position of the box
+    '               5. width  : Integer : The width of the box
+    '               6. height  : Integer : The height of the box
+    '               7. sData  : String() : the String array that needs individual strings to be printed in a separate box
+    '               8. BoxFont : Font : The font to be used for the strings
+    '               9. nStrXOffset  : Integer : The horizontal offset from the left of a box where the string should be written
+    '               10. nStrYOffset : Integer :The vertical offset from the top of a box where the string should be written
+
+    '*****************************************************************************************
+    Private Sub DrawBoxedString(ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs, ByVal nRectCount As Integer, ByVal x As Integer, ByVal y As Integer, ByVal width As Integer, ByVal height As Integer, ByVal sData As String(), ByVal BoxFont As Font, ByVal nStrXOffset As Integer, ByVal nStrYOffset As Integer)
+        Dim Recs As RectangleF()
+        ReDim Recs(nRectCount)
+        Dim i = 0
+        For i = 0 To nRectCount - 1
+            Recs(i) = New RectangleF((x + (i * width)), y, width, height)
+            e.Graphics.DrawString(sData(i), BoxFont, Brushes.Black, (x + (i * width) + nStrXOffset), y + nStrYOffset)
+        Next
+        e.Graphics.DrawRectangles(Pens.Black, Recs)
+    End Sub
+'Start of ir 72595
+
+    Private Sub PrintBoxedWithoutLines(ByVal IItem As CInstrumentItem, ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs)
+        Dim chrValues As Char()
+        Dim strValues As String()
+        Dim i As Integer
+        'Split the digits into a char array and then into a string array
+        chrValues = IItem.Data.ToCharArray
+        If IsArray(chrValues) Then
+            ReDim strValues(UBound(chrValues))
+            For i = LBound(chrValues) To UBound(chrValues)
+                strValues(i) = chrValues(i).ToString()
+            Next
+            DrawBoxedStringWithoutLines(sender, e, (UBound(chrValues) + 1), IItem.xPos, IItem.yPos, IItem.BoxWidth, IItem.BoxHeight, strValues, IItem.ItemFont, IItem.xOffset, IItem.yOffset)
+        End If
+
+    End Sub
+
+
+    Private Sub DrawBoxedStringWithoutLines(ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs, ByVal nRectCount As Integer, ByVal x As Integer, ByVal y As Integer, ByVal width As Integer, ByVal height As Integer, ByVal sData As String(), ByVal BoxFont As Font, ByVal nStrXOffset As Integer, ByVal nStrYOffset As Integer)
+        Dim i = 0
+        For i = 0 To nRectCount - 1
+            e.Graphics.DrawString(sData(i), BoxFont, Brushes.Black, (x + (i * width) + nStrXOffset), y + nStrYOffset)
+        Next
+    End Sub
+'end of ir 72595
+    Private Sub PrintVerticalBox(ByVal sender As Object, ByVal e As System.Drawing.Printing.PrintPageEventArgs)
+        Dim VertFont As New Font(System.Drawing.FontFamily.GenericMonospace, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+        Dim nRectCount As Integer
+        Dim x As Integer
+        Dim y As Integer
+        Dim width As Integer
+        Dim height As Integer
+        Dim BoxFont As New Font(System.Drawing.FontFamily.GenericMonospace, 13, FontStyle.Regular, GraphicsUnit.Pixel)
+        Dim i As Integer
+        Dim Recs As RectangleF()
+        nRectCount = 9
+        ReDim Recs(nRectCount)
+        width = 20
+        height = 20
+        x = 800
+        y = 120
+        i = nRectCount
+        While i > 0
+            Recs((nRectCount - i)) = New RectangleF(x, (y + ((nRectCount - i) * height)), width, height)
+            e.Graphics.DrawString(i, BoxFont, Brushes.Black, (x + 1), (y + ((nRectCount - i) * height) + 1))
+            i = i - 1
+        End While
+        e.Graphics.DrawRectangles(Pens.Black, Recs)
+    End Sub
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: GetPaiseString
+    '   DESCRIPTION: Funtion that returns the string for the amount in paise 
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. chrValues : Char() : The Char representation of the paise amount to be converted
+    '   RETURN TYPE: String: The string string for the amount in paise 
+    '*****************************************************************************************
+    Public Function GetPaiseString(ByVal chrValues As Char()) As String
+        Dim i As Integer
+
+        If IsArray(chrValues) Then
+            Select Case chrValues(0)
+                Case "0"
+                    If chrValues(1) = "0" Then
+                        GetPaiseString = "ZERO"
+                    Else
+                        GetPaiseString = GetStringForDigit(chrValues(1))
+                    End If
+                Case "1"
+                    Select Case chrValues(1)
+                        Case "0"
+                            GetPaiseString = "TEN"
+                        Case "1"
+                            GetPaiseString = "ELEVEN"
+                        Case "2"
+                            GetPaiseString = "TWELVE"
+                        Case "3"
+                            GetPaiseString = "THIRTEEN"
+                        Case "4"
+                            GetPaiseString = "FOURTEEN"
+                        Case "5"
+                            GetPaiseString = "FIFTEEN"
+                        Case "6"
+                            GetPaiseString = "SIXTEEN"
+                        Case "7"
+                            GetPaiseString = "SEVENTEEN"
+                        Case "8"
+                            GetPaiseString = "EIGHTEEN"
+                        Case "9"
+                            GetPaiseString = "NINETEEN"
+                    End Select
+                Case Else
+                    ' IF value in multiples of 10
+                    If chrValues(1) = "0" Then
+                        GetPaiseString = GetTensString(chrValues(0))
+                    Else
+                        GetPaiseString = GetTensString(chrValues(0)) + " " + GetStringForDigit(chrValues(1))
+                    End If
+
+            End Select
+
+
+        End If
+
+    End Function
+    '*****************************************************************************************
+    '*****************************************************************************************
+    '   METHOD NAME: GetTensString
+    '   DESCRIPTION: Funtion that returns the string for the tens digit of the amount in paise 
+    '   SCOPE:       Private
+    '   AUTHOR:      Amal Savle
+    '   CREATED ON:  02 May 2005
+    '*****************************************************************************************
+    '   PARAMETERS: 1. chr : Char : The Char representation of the digit to be converted
+    '   RETURN TYPE: String: The string representation for the tens digit of the amount in paise 
+    '*****************************************************************************************
+    Private Function GetTensString(ByVal chr As Char) As String
+        Select Case chr
+            Case "2"
+                GetTensString = "TWENTY"
+            Case "3"
+                GetTensString = "THIRTY"
+            Case "4"
+                GetTensString = "FORTY"
+            Case "5"
+                GetTensString = "FIFTY"
+            Case "6"
+                GetTensString = "SIXTY"
+            Case "7"
+                GetTensString = "SEVENTY"
+            Case "8"
+                GetTensString = "EIGHTY"
+            Case "9"
+                GetTensString = "NINETY"
+        End Select
+    End Function
+
+End Class
